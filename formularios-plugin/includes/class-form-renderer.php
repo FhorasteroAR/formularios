@@ -29,18 +29,18 @@ class Formularios_Renderer {
         $form_id = absint( $atts['id'] );
 
         if ( ! $form_id || 'formulario' !== get_post_type( $form_id ) ) {
-            return '<p class="formularios-error">' . esc_html__( 'Form not found.', 'formularios' ) . '</p>';
+            return '<p class="formularios-error">' . esc_html( 'Formulario no encontrado.' ) . '</p>';
         }
 
         $elements = get_post_meta( $form_id, '_formularios_elements', true );
         if ( empty( $elements ) || ! is_array( $elements ) ) {
-            return '<p class="formularios-error">' . esc_html__( 'This form has no elements.', 'formularios' ) . '</p>';
+            return '<p class="formularios-error">' . esc_html( 'Este formulario no tiene elementos.' ) . '</p>';
         }
 
         $settings = get_post_meta( $form_id, '_formularios_settings', true );
         $settings = wp_parse_args( $settings ? $settings : array(), array(
-            'submit_text'   => __( 'Submit', 'formularios' ),
-            'success_msg'   => __( 'Thank you! Your response has been recorded.', 'formularios' ),
+            'submit_text'   => 'Enviar',
+            'success_msg'   => 'Gracias! Tu respuesta ha sido registrada.',
             'show_progress' => '1',
             'theme_color'   => '#4F46E5',
         ) );
@@ -50,6 +50,12 @@ class Formularios_Renderer {
         wp_localize_script( 'formularios-front', 'formulariosFront', array(
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce'    => wp_create_nonce( 'formularios_submit' ),
+            'i18n'     => array(
+                'sending'        => 'Enviando...',
+                'required_error' => 'Este campo es obligatorio.',
+                'email_error'    => 'Ingresa un email valido.',
+                'error_generic'  => 'Ocurrio un error. Intenta de nuevo.',
+            ),
         ) );
 
         // Check for sections to determine multi-step
@@ -61,9 +67,19 @@ class Formularios_Renderer {
             }
         }
 
+        // Build branching map: for each section, check if any radio/select field
+        // has go_to_section options set
+        $branching_map = array();
+        if ( $has_sections ) {
+            $branching_map = $this->build_branching_map( $elements );
+        }
+
         ob_start();
         ?>
-        <div class="formularios-form-wrap" data-form-id="<?php echo esc_attr( $form_id ); ?>" style="--fm-theme: <?php echo esc_attr( $settings['theme_color'] ); ?>">
+        <div class="formularios-form-wrap" data-form-id="<?php echo esc_attr( $form_id ); ?>" style="--fm-theme: <?php echo esc_attr( $settings['theme_color'] ); ?>"
+            <?php if ( ! empty( $branching_map ) ) : ?>
+                data-branching="<?php echo esc_attr( wp_json_encode( $branching_map ) ); ?>"
+            <?php endif; ?>>
             <form class="formularios-form" method="post" novalidate>
                 <input type="hidden" name="formularios_form_id" value="<?php echo esc_attr( $form_id ); ?>" />
                 <input type="hidden" name="formularios_nonce" value="<?php echo wp_create_nonce( 'formularios_submit' ); ?>" />
@@ -85,7 +101,7 @@ class Formularios_Renderer {
                         }
                         $section_index++;
                         $active = ( 1 === $section_index ) ? ' active' : '';
-                        echo '<div class="fm-section' . $active . '" data-section="' . esc_attr( $section_index ) . '">';
+                        echo '<div class="fm-section' . $active . '" data-section="' . esc_attr( $section_index ) . '" data-section-id="' . esc_attr( $el['id'] ) . '">';
                         if ( ! empty( $el['title'] ) ) {
                             echo '<div class="fm-section-header">';
                             echo '<h3 class="fm-section-title">' . esc_html( $el['title'] ) . '</h3>';
@@ -108,8 +124,8 @@ class Formularios_Renderer {
 
                 <?php if ( $has_sections ) : ?>
                     <div class="fm-nav-buttons">
-                        <button type="button" class="fm-btn fm-btn-prev" style="display:none"><?php esc_html_e( 'Previous', 'formularios' ); ?></button>
-                        <button type="button" class="fm-btn fm-btn-next"><?php esc_html_e( 'Next', 'formularios' ); ?></button>
+                        <button type="button" class="fm-btn fm-btn-prev" style="display:none">Anterior</button>
+                        <button type="button" class="fm-btn fm-btn-next">Siguiente</button>
                         <button type="submit" class="fm-btn fm-btn-submit" style="display:none"><?php echo esc_html( $settings['submit_text'] ); ?></button>
                     </div>
                 <?php else : ?>
@@ -128,6 +144,33 @@ class Formularios_Renderer {
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    /**
+     * Build a branching map: fieldName => { optionValue => targetSectionId }
+     */
+    private function build_branching_map( $elements ) {
+        $map = array();
+        foreach ( $elements as $el ) {
+            if ( 'question' !== $el['type'] ) continue;
+            if ( ! in_array( $el['input_type'], array( 'radio', 'select' ), true ) ) continue;
+            if ( empty( $el['options'] ) ) continue;
+
+            $has_branching = false;
+            $field_map = array();
+            foreach ( $el['options'] as $opt ) {
+                if ( is_array( $opt ) && ! empty( $opt['go_to_section'] ) ) {
+                    $has_branching = true;
+                    $field_map[ $opt['label'] ] = $opt['go_to_section'];
+                }
+            }
+
+            if ( $has_branching ) {
+                $name = 'fm_field_' . sanitize_key( $el['id'] );
+                $map[ $name ] = $field_map;
+            }
+        }
+        return $map;
     }
 
     private function render_element( $el, $index ) {
@@ -166,10 +209,11 @@ class Formularios_Renderer {
 
                 case 'select':
                     echo '<select name="' . esc_attr( $name ) . '" class="fm-control fm-select"' . $req_attr . '>';
-                    echo '<option value="">' . esc_html__( 'Select an option...', 'formularios' ) . '</option>';
+                    echo '<option value="">Selecciona una opcion...</option>';
                     if ( ! empty( $el['options'] ) ) {
                         foreach ( $el['options'] as $opt ) {
-                            echo '<option value="' . esc_attr( $opt ) . '">' . esc_html( $opt ) . '</option>';
+                            $label = is_array( $opt ) ? ( $opt['label'] ?? '' ) : $opt;
+                            echo '<option value="' . esc_attr( $label ) . '">' . esc_html( $label ) . '</option>';
                         }
                     }
                     echo '</select>';
@@ -179,10 +223,11 @@ class Formularios_Renderer {
                     echo '<div class="fm-choices">';
                     if ( ! empty( $el['options'] ) ) {
                         foreach ( $el['options'] as $j => $opt ) {
+                            $label = is_array( $opt ) ? ( $opt['label'] ?? '' ) : $opt;
                             $rid = $name . '_' . $j;
                             echo '<label class="fm-choice" for="' . esc_attr( $rid ) . '">';
-                            echo '<input type="radio" id="' . esc_attr( $rid ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $opt ) . '"' . $req_attr . ' />';
-                            echo '<span class="fm-choice-label">' . esc_html( $opt ) . '</span>';
+                            echo '<input type="radio" id="' . esc_attr( $rid ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $label ) . '"' . $req_attr . ' />';
+                            echo '<span class="fm-choice-label">' . esc_html( $label ) . '</span>';
                             echo '</label>';
                         }
                     }
@@ -193,10 +238,11 @@ class Formularios_Renderer {
                     echo '<div class="fm-choices">';
                     if ( ! empty( $el['options'] ) ) {
                         foreach ( $el['options'] as $j => $opt ) {
+                            $label = is_array( $opt ) ? ( $opt['label'] ?? '' ) : $opt;
                             $cid = $name . '_' . $j;
                             echo '<label class="fm-choice" for="' . esc_attr( $cid ) . '">';
-                            echo '<input type="checkbox" id="' . esc_attr( $cid ) . '" name="' . esc_attr( $name ) . '[]" value="' . esc_attr( $opt ) . '" />';
-                            echo '<span class="fm-choice-label">' . esc_html( $opt ) . '</span>';
+                            echo '<input type="checkbox" id="' . esc_attr( $cid ) . '" name="' . esc_attr( $name ) . '[]" value="' . esc_attr( $label ) . '" />';
+                            echo '<span class="fm-choice-label">' . esc_html( $label ) . '</span>';
                             echo '</label>';
                         }
                     }

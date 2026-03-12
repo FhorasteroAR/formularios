@@ -1,17 +1,18 @@
 <?php
 /**
  * Plugin Name: Formularios
- * Description: Create and display modern forms using shortcodes. Build forms with questions, titles, images, videos, and multi-step sections.
- * Version: 1.0.0
+ * Description: Crea y muestra formularios modernos usando shortcodes. Construye formularios con preguntas, titulos, imagenes, videos y secciones de multiples pasos.
+ * Version: 1.1.0
  * Author: Formularios Team
  * Text Domain: formularios
+ * Domain Path: /languages
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'FORMULARIOS_VERSION', '1.0.0' );
+define( 'FORMULARIOS_VERSION', '1.1.0' );
 define( 'FORMULARIOS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'FORMULARIOS_URL', plugin_dir_url( __FILE__ ) );
 
@@ -19,6 +20,7 @@ require_once FORMULARIOS_PATH . 'includes/class-form-cpt.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-builder.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-renderer.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-submissions.php';
+require_once FORMULARIOS_PATH . 'includes/class-form-emails.php';
 
 final class Formularios {
 
@@ -36,6 +38,7 @@ final class Formularios {
         new Formularios_Builder();
         new Formularios_Renderer();
         new Formularios_Submissions();
+        new Formularios_Emails();
 
         register_activation_hook( __FILE__, array( $this, 'activate' ) );
     }

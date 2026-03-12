@@ -11,17 +11,17 @@ class Formularios_CPT {
 
     public function register_post_type() {
         $labels = array(
-            'name'               => __( 'Forms', 'formularios' ),
-            'singular_name'      => __( 'Form', 'formularios' ),
-            'add_new'            => __( 'Add New Form', 'formularios' ),
-            'add_new_item'       => __( 'Add New Form', 'formularios' ),
-            'edit_item'          => __( 'Edit Form', 'formularios' ),
-            'new_item'           => __( 'New Form', 'formularios' ),
-            'view_item'          => __( 'View Form', 'formularios' ),
-            'search_items'       => __( 'Search Forms', 'formularios' ),
-            'not_found'          => __( 'No forms found', 'formularios' ),
-            'not_found_in_trash' => __( 'No forms found in Trash', 'formularios' ),
-            'menu_name'          => __( 'Formularios', 'formularios' ),
+            'name'               => 'Formularios',
+            'singular_name'      => 'Formulario',
+            'add_new'            => 'Agregar nuevo',
+            'add_new_item'       => 'Agregar nuevo formulario',
+            'edit_item'          => 'Editar formulario',
+            'new_item'           => 'Nuevo formulario',
+            'view_item'          => 'Ver formulario',
+            'search_items'       => 'Buscar formularios',
+            'not_found'          => 'No se encontraron formularios',
+            'not_found_in_trash' => 'No se encontraron formularios en la papelera',
+            'menu_name'          => 'Formularios',
         );
 
         $args = array(
@@ -43,8 +43,8 @@ class Formularios_CPT {
         foreach ( $columns as $key => $value ) {
             $new_columns[ $key ] = $value;
             if ( 'title' === $key ) {
-                $new_columns['shortcode']   = __( 'Shortcode', 'formularios' );
-                $new_columns['submissions'] = __( 'Submissions', 'formularios' );
+                $new_columns['shortcode']   = 'Shortcode';
+                $new_columns['submissions'] = 'Respuestas';
             }
         }
         return $new_columns;

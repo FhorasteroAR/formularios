@@ -5,17 +5,18 @@
     var counter = 0;
 
     var QUESTION_TYPES = {
-        text:     'Short Text',
-        textarea: 'Long Text',
+        text:     'Texto corto',
+        textarea: 'Texto largo',
         email:    'Email',
-        number:   'Number',
-        date:     'Date',
-        select:   'Dropdown',
-        radio:    'Multiple Choice',
-        checkbox: 'Checkboxes'
+        number:   'Numero',
+        date:     'Fecha',
+        select:   'Desplegable',
+        radio:    'Opcion multiple',
+        checkbox: 'Casillas de verificacion'
     };
 
     var NEEDS_OPTIONS = ['select', 'radio', 'checkbox'];
+    var SUPPORTS_BRANCHING = ['select', 'radio'];
 
     // Initialize
     $(document).ready(function() {
@@ -32,6 +33,17 @@
             try {
                 elements = JSON.parse(data);
                 if (!Array.isArray(elements)) elements = [];
+                // Normalize options format: convert plain strings to {label, go_to_section}
+                elements.forEach(function(el) {
+                    if (el.type === 'question' && el.options && el.options.length) {
+                        el.options = el.options.map(function(opt) {
+                            if (typeof opt === 'string') {
+                                return { label: opt, go_to_section: '' };
+                            }
+                            return opt;
+                        });
+                    }
+                });
             } catch(e) {
                 elements = [];
             }
@@ -95,6 +107,13 @@
 
         // Option input change
         $('#formularios-elements-list').on('input', '.fm-option-input', function() {
+            var $el = $(this).closest('.fm-element');
+            var id = $el.data('id');
+            syncOptions(id, $el);
+        });
+
+        // Option branching select change
+        $('#formularios-elements-list').on('change', '.fm-option-goto', function() {
             var $el = $(this).closest('.fm-element');
             var id = $el.data('id');
             syncOptions(id, $el);
@@ -235,6 +254,18 @@
         }
     }
 
+    // --- Get current sections from the elements array ---
+
+    function getSections() {
+        var sections = [];
+        elements.forEach(function(el) {
+            if (el.type === 'section') {
+                sections.push({ id: el.id, title: el.title || 'Sin titulo' });
+            }
+        });
+        return sections;
+    }
+
     // --- Rendering ---
 
     function renderElement(el) {
@@ -255,13 +286,13 @@
 
         // Header
         html += '<div class="fm-element-header">';
-        html += '<span class="fm-element-drag" title="Drag to reorder">';
+        html += '<span class="fm-element-drag" title="' + escAttr(formularios.i18n.drag_reorder) + '">';
         html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
         html += '</span>';
         html += '<span class="fm-element-type-badge type-' + el.type + '">' + typeLabel[el.type] + '</span>';
         html += '<div class="fm-element-actions">';
-        html += '<button type="button" class="fm-btn-duplicate" title="Duplicate">&#x2398; Duplicate</button>';
-        html += '<button type="button" class="fm-btn-delete" title="Delete">&times; Delete</button>';
+        html += '<button type="button" class="fm-btn-duplicate" title="' + escAttr(formularios.i18n.duplicate) + '">&#x2398; ' + escHtml(formularios.i18n.duplicate) + '</button>';
+        html += '<button type="button" class="fm-btn-delete" title="' + escAttr(formularios.i18n.remove) + '">&times; ' + escHtml(formularios.i18n.remove) + '</button>';
         html += '</div>';
         html += '</div>';
 
@@ -285,18 +316,19 @@
                     html += '<option value="' + key + '"' + (el.input_type === key ? ' selected' : '') + '>' + QUESTION_TYPES[key] + '</option>';
                 }
                 html += '</select>';
-                html += '<input type="text" class="fm-input fm-data-input" data-field="placeholder" value="' + escAttr(el.placeholder) + '" placeholder="Placeholder text..." style="flex:1" />';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="placeholder" value="' + escAttr(el.placeholder) + '" placeholder="' + escAttr(formularios.i18n.placeholder_txt) + '" style="flex:1" />';
                 html += '<label class="fm-required-toggle"><input type="checkbox" class="fm-data-input" data-field="required"' + (el.required ? ' checked' : '') + ' /> ' + formularios.i18n.required + '</label>';
                 html += '</div>';
 
                 // Options area
                 var showOpts = NEEDS_OPTIONS.indexOf(el.input_type) !== -1;
+                var showBranching = SUPPORTS_BRANCHING.indexOf(el.input_type) !== -1;
                 html += '<div class="fm-options-area" style="' + (showOpts ? '' : 'display:none') + '">';
                 html += '<label class="fm-input-label">' + formularios.i18n.add_option + 's</label>';
                 html += '<div class="fm-options-list">';
                 if (el.options && el.options.length) {
                     el.options.forEach(function(opt, i) {
-                        html += buildOptionRow(opt, i);
+                        html += buildOptionRow(opt, i, showBranching);
                     });
                 }
                 html += '</div>';
@@ -312,7 +344,7 @@
             case 'image':
                 if (el.image_url) {
                     html += '<div class="fm-image-preview"><img src="' + escAttr(el.image_url) + '" />';
-                    html += '<button type="button" class="fm-image-change-btn" style="margin-top:8px">Change Image</button>';
+                    html += '<button type="button" class="fm-image-change-btn" style="margin-top:8px">' + escHtml(formularios.i18n.change_image) + '</button>';
                     html += '</div>';
                 } else {
                     html += '<div class="fm-image-upload-btn">';
@@ -320,13 +352,13 @@
                     html += '<span>' + formularios.i18n.select_image + '</span>';
                     html += '</div>';
                 }
-                html += '<input type="text" class="fm-input fm-data-input" data-field="caption" value="' + escAttr(el.caption) + '" placeholder="Image caption (optional)" />';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="caption" value="' + escAttr(el.caption) + '" placeholder="' + escAttr(formularios.i18n.image_caption) + '" />';
                 break;
 
             case 'video':
                 html += '<div class="fm-video-input-row">';
                 html += '<input type="text" class="fm-input fm-video-url-input fm-data-input" data-field="video_url" value="' + escAttr(el.video_url) + '" placeholder="' + escAttr(formularios.i18n.youtube_search) + '" />';
-                html += '<button type="button" class="fm-video-parse-btn">Embed</button>';
+                html += '<button type="button" class="fm-video-parse-btn">' + escHtml(formularios.i18n.embed) + '</button>';
                 html += '</div>';
                 if (el.video_url) {
                     var vid = extractYouTubeId(el.video_url);
@@ -334,21 +366,38 @@
                         html += '<div class="fm-video-preview"><iframe src="https://www.youtube.com/embed/' + vid + '" allowfullscreen></iframe></div>';
                     }
                 }
-                html += '<input type="text" class="fm-input fm-data-input" data-field="caption" value="' + escAttr(el.caption) + '" placeholder="Video caption (optional)" />';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="caption" value="' + escAttr(el.caption) + '" placeholder="' + escAttr(formularios.i18n.video_caption) + '" />';
                 break;
 
             case 'section':
                 html += '<input type="text" class="fm-input fm-data-input" data-field="title" value="' + escAttr(el.title) + '" placeholder="' + escAttr(formularios.i18n.section_ph) + '" style="font-size:16px;font-weight:600" />';
-                html += '<input type="text" class="fm-input fm-data-input" data-field="description" value="' + escAttr(el.description) + '" placeholder="Section description (optional)" />';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="description" value="' + escAttr(el.description) + '" placeholder="' + escAttr(formularios.i18n.section_desc) + '" />';
                 break;
         }
         return html;
     }
 
-    function buildOptionRow(value, index) {
+    function buildOptionRow(opt, index, showBranching) {
+        var label = (typeof opt === 'object') ? (opt.label || '') : opt;
+        var goTo = (typeof opt === 'object') ? (opt.go_to_section || '') : '';
+
         var html = '<div class="fm-option-row">';
-        html += '<input type="text" class="fm-input fm-option-input" value="' + escAttr(value) + '" placeholder="' + formularios.i18n.option_ph + ' ' + (index + 1) + '" />';
-        html += '<button type="button" class="fm-option-remove" title="Remove">&times;</button>';
+        html += '<input type="text" class="fm-input fm-option-input" value="' + escAttr(label) + '" placeholder="' + formularios.i18n.option_ph + ' ' + (index + 1) + '" />';
+
+        // Branching selector for radio/select
+        if (showBranching) {
+            var sections = getSections();
+            html += '<select class="fm-select fm-option-goto" title="' + escAttr(formularios.i18n.go_to_section) + '">';
+            html += '<option value="">' + escHtml(formularios.i18n.next_section) + '</option>';
+            sections.forEach(function(sec) {
+                var selected = (goTo === sec.id) ? ' selected' : '';
+                html += '<option value="' + escAttr(sec.id) + '"' + selected + '>' + escHtml(formularios.i18n.go_to_section) + ': ' + escHtml(sec.title) + '</option>';
+            });
+            html += '<option value="__end__"' + (goTo === '__end__' ? ' selected' : '') + '>' + escHtml(formularios.i18n.end_form) + '</option>';
+            html += '</select>';
+        }
+
+        html += '<button type="button" class="fm-option-remove" title="' + escAttr(formularios.i18n.remove) + '">&times;</button>';
         html += '</div>';
         return html;
     }
@@ -360,8 +409,9 @@
         if (!el) return;
         if (!el.options) el.options = [];
         var idx = el.options.length;
-        el.options.push('');
-        $el.find('.fm-options-list').append(buildOptionRow('', idx));
+        el.options.push({ label: '', go_to_section: '' });
+        var showBranching = SUPPORTS_BRANCHING.indexOf(el.input_type) !== -1;
+        $el.find('.fm-options-list').append(buildOptionRow({ label: '', go_to_section: '' }, idx, showBranching));
         syncAllData();
     }
 
@@ -369,8 +419,10 @@
         var el = findElement(id);
         if (!el) return;
         var opts = [];
-        $el.find('.fm-option-input').each(function() {
-            opts.push($(this).val());
+        $el.find('.fm-option-row').each(function() {
+            var label = $(this).find('.fm-option-input').val();
+            var goTo = $(this).find('.fm-option-goto').val() || '';
+            opts.push({ label: label, go_to_section: goTo });
         });
         el.options = opts;
         syncAllData();
@@ -380,6 +432,17 @@
         var $area = $el.find('.fm-options-area');
         if (NEEDS_OPTIONS.indexOf(inputType) !== -1) {
             $area.slideDown(200);
+            // Rebuild options rows to show/hide branching
+            var id = $el.data('id');
+            var el = findElement(id);
+            if (el && el.options) {
+                var showBranching = SUPPORTS_BRANCHING.indexOf(inputType) !== -1;
+                var $list = $el.find('.fm-options-list');
+                $list.empty();
+                el.options.forEach(function(opt, i) {
+                    $list.append(buildOptionRow(opt, i, showBranching));
+                });
+            }
         } else {
             $area.slideUp(200);
         }
@@ -427,7 +490,7 @@
                 syncAllData();
             }
         } else {
-            alert('Please enter a valid YouTube URL');
+            alert(formularios.i18n.invalid_youtube);
         }
     }
 

@@ -359,6 +359,22 @@
     color: var(--fm-red);
 }
 
+.fm-option-goto {
+    max-width: 220px;
+    font-size: 12px;
+    padding: 6px 8px;
+    border: 1px solid var(--fm-gray-200);
+    border-radius: 4px;
+    background: var(--fm-gray-50);
+    color: var(--fm-gray-600);
+    flex-shrink: 0;
+}
+
+.fm-option-goto:focus {
+    border-color: var(--fm-primary);
+    outline: none;
+}
+
 .fm-add-option-btn {
     display: inline-flex;
     align-items: center;

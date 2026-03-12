@@ -82,6 +82,10 @@ class Formularios_Builder {
                 'embed'           => 'Insertar',
                 'drag_reorder'    => 'Arrastrar para reordenar',
                 'invalid_youtube' => 'Ingresa una URL de YouTube valida',
+                'file_upload'     => 'Subida de archivo',
+                'accepted_files'  => 'Tipos aceptados',
+                'accepted_ph'     => 'ej: .pdf,.jpg,.png,.docx',
+                'max_size'        => 'Tamano maximo (MB)',
             ),
         ) );
     }
@@ -249,11 +253,13 @@ class Formularios_Builder {
 
             switch ( $type ) {
                 case 'question':
-                    $item['label']       = sanitize_text_field( $el['label'] ?? '' );
-                    $item['input_type']  = sanitize_text_field( $el['input_type'] ?? 'text' );
-                    $item['required']    = ! empty( $el['required'] );
-                    $item['placeholder'] = sanitize_text_field( $el['placeholder'] ?? '' );
-                    $item['options']     = array();
+                    $item['label']          = sanitize_text_field( $el['label'] ?? '' );
+                    $item['input_type']     = sanitize_text_field( $el['input_type'] ?? 'text' );
+                    $item['required']       = ! empty( $el['required'] );
+                    $item['placeholder']    = sanitize_text_field( $el['placeholder'] ?? '' );
+                    $item['accepted_types'] = sanitize_text_field( $el['accepted_types'] ?? '' );
+                    $item['max_size']       = absint( $el['max_size'] ?? 5 );
+                    $item['options']        = array();
                     if ( ! empty( $el['options'] ) && is_array( $el['options'] ) ) {
                         foreach ( $el['options'] as $opt ) {
                             if ( is_array( $opt ) ) {

@@ -32,10 +32,18 @@ class Formularios_Submissions {
     }
 
     public function handle_submission() {
-        // Rate limiting: max 5 submissions per IP per minute
+        // Rate limiting: max 10 submissions per IP per minute
         $this->check_rate_limit();
 
         check_ajax_referer( 'formularios_submit', 'formularios_nonce' );
+
+        // Verify CAPTCHA if enabled
+        if ( Formularios_Captcha::is_enabled() ) {
+            $captcha_token = isset( $_POST['formularios_captcha_token'] ) ? sanitize_text_field( $_POST['formularios_captcha_token'] ) : '';
+            if ( ! Formularios_Captcha::verify_token( $captcha_token ) ) {
+                wp_send_json_error( 'La verificacion de captcha fallo. Intenta de nuevo.' );
+            }
+        }
 
         $form_id = absint( $_POST['formularios_form_id'] ?? 0 );
         if ( ! $form_id || 'formulario' !== get_post_type( $form_id ) ) {
@@ -56,7 +64,10 @@ class Formularios_Submissions {
             $name = 'fm_field_' . sanitize_key( $el['id'] );
             $value = '';
 
-            if ( 'checkbox' === $el['input_type'] ) {
+            if ( 'file' === $el['input_type'] ) {
+                // Handle file upload
+                $value = $this->handle_file_upload( $name, $el, $errors );
+            } elseif ( 'checkbox' === $el['input_type'] ) {
                 $value = isset( $_POST[ $name ] ) && is_array( $_POST[ $name ] )
                     ? array_map( 'sanitize_text_field', $_POST[ $name ] )
                     : array();
@@ -64,8 +75,8 @@ class Formularios_Submissions {
                 $value = isset( $_POST[ $name ] ) ? sanitize_text_field( wp_unslash( $_POST[ $name ] ) ) : '';
             }
 
-            // Validate required
-            if ( ! empty( $el['required'] ) ) {
+            // Validate required (skip files — handled in handle_file_upload)
+            if ( 'file' !== $el['input_type'] && ! empty( $el['required'] ) ) {
                 $empty = is_array( $value ) ? empty( $value ) : '' === trim( $value );
                 if ( $empty ) {
                     $label = $el['label'] ?: 'Este campo';
@@ -146,6 +157,73 @@ class Formularios_Submissions {
         do_action( 'formularios_after_submission', $form_id, $submission, $elements );
 
         wp_send_json_success( 'Respuesta guardada correctamente.' );
+    }
+
+    /**
+     * Handle a file upload field.
+     *
+     * @param string $name   The field name.
+     * @param array  $el     The element definition.
+     * @param array  &$errors Reference to errors array.
+     * @return string The uploaded file URL, or empty string.
+     */
+    private function handle_file_upload( $name, $el, &$errors ) {
+        if ( empty( $_FILES[ $name ] ) || UPLOAD_ERR_NO_FILE === $_FILES[ $name ]['error'] ) {
+            if ( ! empty( $el['required'] ) ) {
+                $label = $el['label'] ?: 'Este campo';
+                $errors[ $name ] = sprintf( '%s es obligatorio.', $label );
+            }
+            return '';
+        }
+
+        $file = $_FILES[ $name ];
+
+        if ( UPLOAD_ERR_OK !== $file['error'] ) {
+            $errors[ $name ] = 'Error al subir el archivo.';
+            return '';
+        }
+
+        // Validate file size
+        $max_size = absint( $el['max_size'] ?? 5 );
+        $max_bytes = $max_size * 1024 * 1024;
+        if ( $file['size'] > $max_bytes ) {
+            $errors[ $name ] = sprintf( 'El archivo excede el tamano maximo de %d MB.', $max_size );
+            return '';
+        }
+
+        // Validate file type
+        if ( ! empty( $el['accepted_types'] ) ) {
+            $accepted = array_map( 'trim', explode( ',', strtolower( $el['accepted_types'] ) ) );
+            $ext = strtolower( '.' . pathinfo( $file['name'], PATHINFO_EXTENSION ) );
+            if ( ! in_array( $ext, $accepted, true ) ) {
+                $errors[ $name ] = 'Tipo de archivo no permitido.';
+                return '';
+            }
+        }
+
+        // Use WordPress file type checking
+        $check = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'] );
+        if ( ! $check['type'] ) {
+            $errors[ $name ] = 'Tipo de archivo no permitido.';
+            return '';
+        }
+
+        // Upload using WordPress
+        if ( ! function_exists( 'wp_handle_upload' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+
+        $upload = wp_handle_upload( $file, array(
+            'test_form' => false,
+            'test_type' => true,
+        ) );
+
+        if ( isset( $upload['error'] ) ) {
+            $errors[ $name ] = $upload['error'];
+            return '';
+        }
+
+        return $upload['url'];
     }
 
     /**

@@ -47,14 +47,42 @@ class Formularios_Renderer {
 
         wp_enqueue_style( 'formularios-front' );
         wp_enqueue_script( 'formularios-front' );
+
+        $captcha_enabled = Formularios_Captcha::is_enabled();
+        $captcha_site_key = $captcha_enabled ? Formularios_Captcha::get_site_key() : '';
+
+        if ( $captcha_enabled ) {
+            wp_enqueue_script(
+                'google-recaptcha',
+                'https://www.google.com/recaptcha/api.js?render=' . urlencode( $captcha_site_key ),
+                array(),
+                null,
+                true
+            );
+        }
+
+        // Check if form has file upload fields
+        $has_file_upload = false;
+        foreach ( $elements as $el ) {
+            if ( 'question' === $el['type'] && 'file' === ( $el['input_type'] ?? '' ) ) {
+                $has_file_upload = true;
+                break;
+            }
+        }
+
         wp_localize_script( 'formularios-front', 'formulariosFront', array(
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
-            'nonce'    => wp_create_nonce( 'formularios_submit' ),
-            'i18n'     => array(
+            'ajax_url'          => admin_url( 'admin-ajax.php' ),
+            'nonce'             => wp_create_nonce( 'formularios_submit' ),
+            'captcha_enabled'   => $captcha_enabled,
+            'captcha_site_key'  => $captcha_site_key,
+            'has_file_upload'   => $has_file_upload,
+            'i18n'              => array(
                 'sending'        => 'Enviando...',
                 'required_error' => 'Este campo es obligatorio.',
                 'email_error'    => 'Ingresa un email valido.',
                 'error_generic'  => 'Ocurrio un error. Intenta de nuevo.',
+                'file_too_large' => 'El archivo es demasiado grande.',
+                'file_type_err'  => 'Tipo de archivo no permitido.',
             ),
         ) );
 
@@ -80,7 +108,7 @@ class Formularios_Renderer {
             <?php if ( ! empty( $branching_map ) ) : ?>
                 data-branching="<?php echo esc_attr( wp_json_encode( $branching_map ) ); ?>"
             <?php endif; ?>>
-            <form class="formularios-form" method="post" novalidate>
+            <form class="formularios-form" method="post" novalidate<?php if ( $has_file_upload ) echo ' enctype="multipart/form-data"'; ?>>
                 <input type="hidden" name="formularios_form_id" value="<?php echo esc_attr( $form_id ); ?>" />
                 <input type="hidden" name="formularios_nonce" value="<?php echo wp_create_nonce( 'formularios_submit' ); ?>" />
 
@@ -245,6 +273,29 @@ class Formularios_Renderer {
                             echo '<span class="fm-choice-label">' . esc_html( $label ) . '</span>';
                             echo '</label>';
                         }
+                    }
+                    echo '</div>';
+                    break;
+
+                case 'file':
+                    $accept = '';
+                    if ( ! empty( $el['accepted_types'] ) ) {
+                        $accept = ' accept="' . esc_attr( $el['accepted_types'] ) . '"';
+                    }
+                    $max_size = absint( $el['max_size'] ?? 5 );
+                    echo '<div class="fm-file-upload-wrap">';
+                    echo '<input type="file" name="' . esc_attr( $name ) . '" class="fm-control fm-file-input" data-max-size="' . esc_attr( $max_size ) . '"' . $accept . $req_attr . ' />';
+                    if ( ! empty( $el['accepted_types'] ) || $max_size ) {
+                        echo '<p class="fm-file-hint">';
+                        $hints = array();
+                        if ( ! empty( $el['accepted_types'] ) ) {
+                            $hints[] = 'Formatos: ' . esc_html( $el['accepted_types'] );
+                        }
+                        if ( $max_size ) {
+                            $hints[] = 'Max: ' . esc_html( $max_size ) . ' MB';
+                        }
+                        echo esc_html( implode( ' | ', $hints ) );
+                        echo '</p>';
                     }
                     echo '</div>';
                     break;

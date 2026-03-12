@@ -1,0 +1,186 @@
+/* ==========================================================================
+   Formularios - Submissions Page Styles
+   ========================================================================== */
+
+.fm-submissions-wrap {
+    max-width: 1200px;
+}
+
+.fm-submissions-wrap h1 {
+    margin-bottom: 20px;
+}
+
+/* Tabs */
+.fm-submissions-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-bottom: 2px solid #E5E7EB;
+    margin-bottom: 24px;
+}
+
+.fm-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #6B7280;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.fm-tab:hover {
+    color: #4F46E5;
+    background: #F9FAFB;
+}
+
+.fm-tab-active {
+    color: #4F46E5;
+    border-bottom-color: #4F46E5;
+    font-weight: 600;
+}
+
+.fm-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 11px;
+    background: #F3F4F6;
+    color: #6B7280;
+}
+
+.fm-tab-active .fm-tab-count {
+    background: #EEF2FF;
+    color: #4F46E5;
+}
+
+/* Table */
+.fm-submissions-table-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    background: #FFFFFF;
+}
+
+.fm-submissions-table {
+    border: none;
+    border-collapse: collapse;
+}
+
+.fm-submissions-table thead th {
+    background: #F9FAFB;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6B7280;
+    padding: 12px 16px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.fm-submissions-table tbody td {
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #F3F4F6;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fm-submissions-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.fm-submissions-table tbody tr:hover td {
+    background: #F9FAFB;
+}
+
+.fm-col-id {
+    width: 50px;
+    text-align: center;
+    color: #9CA3AF !important;
+}
+
+.fm-col-date {
+    width: 160px;
+}
+
+.fm-col-ip {
+    width: 130px;
+    color: #9CA3AF !important;
+}
+
+/* Empty */
+.fm-submissions-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9CA3AF;
+    font-size: 15px;
+    background: #F9FAFB;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+}
+
+/* Pagination */
+.fm-pagination {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 16px;
+    padding: 8px 0;
+}
+
+.fm-page-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 13px;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.fm-page-num:hover {
+    background: #F3F4F6;
+    border-color: #D1D5DB;
+}
+
+.fm-page-current {
+    background: #4F46E5;
+    color: #FFFFFF;
+    border-color: #4F46E5;
+}
+
+.fm-page-info {
+    margin-left: 12px;
+    font-size: 13px;
+    color: #9CA3AF;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .fm-submissions-tabs {
+        gap: 4px;
+    }
+    .fm-tab {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+}

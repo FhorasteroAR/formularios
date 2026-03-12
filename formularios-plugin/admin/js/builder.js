@@ -12,7 +12,8 @@
         date:     'Fecha',
         select:   'Desplegable',
         radio:    'Opcion multiple',
-        checkbox: 'Casillas de verificacion'
+        checkbox: 'Casillas de verificacion',
+        file:     'Subida de archivo'
     };
 
     var NEEDS_OPTIONS = ['select', 'radio', 'checkbox'];
@@ -189,7 +190,9 @@
                     input_type: 'text',
                     required: false,
                     placeholder: '',
-                    options: []
+                    options: [],
+                    accepted_types: '',
+                    max_size: 5
                 });
             case 'title_desc':
                 return $.extend(base, { title: '', description: '' });
@@ -334,6 +337,21 @@
                 html += '</div>';
                 html += '<button type="button" class="fm-add-option-btn">+ ' + formularios.i18n.add_option + '</button>';
                 html += '</div>';
+
+                // File upload settings area
+                var showFile = (el.input_type === 'file');
+                html += '<div class="fm-file-settings" style="' + (showFile ? '' : 'display:none') + '">';
+                html += '<div class="fm-file-settings-row">';
+                html += '<div class="fm-file-setting">';
+                html += '<label class="fm-input-label">' + formularios.i18n.accepted_files + '</label>';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="accepted_types" value="' + escAttr(el.accepted_types || '') + '" placeholder="' + escAttr(formularios.i18n.accepted_ph) + '" />';
+                html += '</div>';
+                html += '<div class="fm-file-setting">';
+                html += '<label class="fm-input-label">' + formularios.i18n.max_size + '</label>';
+                html += '<input type="number" class="fm-input fm-data-input" data-field="max_size" value="' + escAttr(el.max_size || '5') + '" min="1" max="50" style="max-width:100px" />';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
                 break;
 
             case 'title_desc':
@@ -430,6 +448,8 @@
 
     function toggleOptionsUI($el, inputType) {
         var $area = $el.find('.fm-options-area');
+        var $fileArea = $el.find('.fm-file-settings');
+
         if (NEEDS_OPTIONS.indexOf(inputType) !== -1) {
             $area.slideDown(200);
             // Rebuild options rows to show/hide branching
@@ -445,6 +465,13 @@
             }
         } else {
             $area.slideUp(200);
+        }
+
+        // File settings
+        if (inputType === 'file') {
+            $fileArea.slideDown(200);
+        } else {
+            $fileArea.slideUp(200);
         }
     }
 

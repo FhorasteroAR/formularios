@@ -341,6 +341,9 @@
 
 .fm-option-row .fm-input {
     flex: 1;
+    padding: 10px 14px;
+    font-size: 14px;
+    min-height: 40px;
 }
 
 .fm-option-remove {
@@ -500,6 +503,25 @@
     border: 1px solid var(--fm-gray-200);
     border-radius: 6px;
     cursor: pointer;
+}
+
+/* File Upload Settings */
+.fm-file-settings {
+    border-top: 1px solid var(--fm-gray-100);
+    padding-top: 12px;
+}
+
+.fm-file-settings-row {
+    display: flex;
+    gap: 16px;
+}
+
+.fm-file-setting {
+    flex: 1;
+}
+
+.fm-file-setting .fm-input-label {
+    margin-bottom: 6px;
 }
 
 /* Animations */

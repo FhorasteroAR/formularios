@@ -32,26 +32,56 @@ class Formularios_Builder {
             true
         );
 
+        // Build sections list from current post for conditional logic
+        $sections = array();
+        if ( isset( $_GET['post'] ) ) {
+            $elements = get_post_meta( absint( $_GET['post'] ), '_formularios_elements', true );
+            if ( is_array( $elements ) ) {
+                foreach ( $elements as $el ) {
+                    if ( 'section' === $el['type'] ) {
+                        $sections[] = array(
+                            'id'    => $el['id'],
+                            'title' => $el['title'],
+                        );
+                    }
+                }
+            }
+        }
+
         wp_localize_script( 'formularios-admin', 'formularios', array(
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce'    => wp_create_nonce( 'formularios_nonce' ),
+            'sections' => $sections,
             'i18n'     => array(
-                'question'       => __( 'Question', 'formularios' ),
-                'title_desc'     => __( 'Title & Description', 'formularios' ),
-                'image'          => __( 'Image', 'formularios' ),
-                'video'          => __( 'Video', 'formularios' ),
-                'section'        => __( 'Section', 'formularios' ),
-                'select_image'   => __( 'Select Image', 'formularios' ),
-                'remove'         => __( 'Remove', 'formularios' ),
-                'duplicate'      => __( 'Duplicate', 'formularios' ),
-                'required'       => __( 'Required', 'formularios' ),
-                'placeholder'    => __( 'Enter your question...', 'formularios' ),
-                'title_ph'       => __( 'Enter title...', 'formularios' ),
-                'desc_ph'        => __( 'Enter description...', 'formularios' ),
-                'section_ph'     => __( 'Section title...', 'formularios' ),
-                'youtube_search' => __( 'Search YouTube or paste URL...', 'formularios' ),
-                'option_ph'      => __( 'Option', 'formularios' ),
-                'add_option'     => __( 'Add option', 'formularios' ),
+                'question'        => 'Pregunta',
+                'title_desc'      => 'Titulo y descripcion',
+                'image'           => 'Imagen',
+                'video'           => 'Video',
+                'section'         => 'Seccion',
+                'select_image'    => 'Seleccionar imagen',
+                'remove'          => 'Eliminar',
+                'duplicate'       => 'Duplicar',
+                'required'        => 'Obligatorio',
+                'placeholder'     => 'Escribe tu pregunta...',
+                'title_ph'        => 'Escribe el titulo...',
+                'desc_ph'         => 'Escribe la descripcion...',
+                'section_ph'      => 'Titulo de la seccion...',
+                'youtube_search'  => 'Buscar en YouTube o pegar URL...',
+                'option_ph'       => 'Opcion',
+                'add_option'      => 'Agregar opcion',
+                'go_to_section'   => 'Ir a seccion',
+                'next_section'    => 'Siguiente seccion',
+                'end_form'        => 'Enviar formulario',
+                'no_sections'     => 'Agrega secciones al formulario para habilitar la logica condicional',
+                'branching'       => 'Logica condicional',
+                'image_caption'   => 'Descripcion de la imagen (opcional)',
+                'video_caption'   => 'Descripcion del video (opcional)',
+                'section_desc'    => 'Descripcion de la seccion (opcional)',
+                'placeholder_txt' => 'Texto de ejemplo...',
+                'change_image'    => 'Cambiar imagen',
+                'embed'           => 'Insertar',
+                'drag_reorder'    => 'Arrastrar para reordenar',
+                'invalid_youtube' => 'Ingresa una URL de YouTube valida',
             ),
         ) );
     }
@@ -59,7 +89,7 @@ class Formularios_Builder {
     public function add_meta_boxes() {
         add_meta_box(
             'formularios_builder',
-            __( 'Form Builder', 'formularios' ),
+            'Constructor de formulario',
             array( $this, 'render_builder' ),
             'formulario',
             'normal',
@@ -68,7 +98,7 @@ class Formularios_Builder {
 
         add_meta_box(
             'formularios_settings',
-            __( 'Form Settings', 'formularios' ),
+            'Configuracion del formulario',
             array( $this, 'render_settings' ),
             'formulario',
             'side'
@@ -87,34 +117,34 @@ class Formularios_Builder {
                     <div class="empty-icon">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                     </div>
-                    <p><?php esc_html_e( 'Click the buttons below to start building your form', 'formularios' ); ?></p>
+                    <p>Haz clic en los botones de abajo para comenzar a construir tu formulario</p>
                 </div>
             </div>
 
             <div id="formularios-floating-menu">
-                <button type="button" class="fmenu-btn" data-type="question" title="<?php esc_attr_e( 'Add Question', 'formularios' ); ?>">
+                <button type="button" class="fmenu-btn" data-type="question" title="Agregar pregunta">
                     <span class="fmenu-icon">+</span>
-                    <span class="fmenu-label"><?php esc_html_e( 'Question', 'formularios' ); ?></span>
+                    <span class="fmenu-label">Pregunta</span>
                 </button>
-                <button type="button" class="fmenu-btn" data-type="title_desc" title="<?php esc_attr_e( 'Add Title & Description', 'formularios' ); ?>">
+                <button type="button" class="fmenu-btn" data-type="title_desc" title="Agregar titulo y descripcion">
                     <span class="fmenu-icon">Tt</span>
-                    <span class="fmenu-label"><?php esc_html_e( 'Title', 'formularios' ); ?></span>
+                    <span class="fmenu-label">Titulo</span>
                 </button>
-                <button type="button" class="fmenu-btn" data-type="image" title="<?php esc_attr_e( 'Add Image', 'formularios' ); ?>">
+                <button type="button" class="fmenu-btn" data-type="image" title="Agregar imagen">
                     <span class="fmenu-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                     </span>
-                    <span class="fmenu-label"><?php esc_html_e( 'Image', 'formularios' ); ?></span>
+                    <span class="fmenu-label">Imagen</span>
                 </button>
-                <button type="button" class="fmenu-btn" data-type="video" title="<?php esc_attr_e( 'Add Video', 'formularios' ); ?>">
+                <button type="button" class="fmenu-btn" data-type="video" title="Agregar video">
                     <span class="fmenu-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </span>
-                    <span class="fmenu-label"><?php esc_html_e( 'Video', 'formularios' ); ?></span>
+                    <span class="fmenu-label">Video</span>
                 </button>
-                <button type="button" class="fmenu-btn" data-type="section" title="<?php esc_attr_e( 'Add Section', 'formularios' ); ?>">
+                <button type="button" class="fmenu-btn" data-type="section" title="Agregar seccion">
                     <span class="fmenu-icon">=</span>
-                    <span class="fmenu-label"><?php esc_html_e( 'Section', 'formularios' ); ?></span>
+                    <span class="fmenu-label">Seccion</span>
                 </button>
             </div>
         </div>
@@ -126,34 +156,48 @@ class Formularios_Builder {
     public function render_settings( $post ) {
         $settings = get_post_meta( $post->ID, '_formularios_settings', true );
         $settings = wp_parse_args( $settings ? $settings : array(), array(
-            'submit_text'    => __( 'Submit', 'formularios' ),
-            'success_msg'    => __( 'Thank you! Your response has been recorded.', 'formularios' ),
-            'show_progress'  => '1',
-            'theme_color'    => '#4F46E5',
+            'submit_text'       => 'Enviar',
+            'success_msg'       => 'Gracias! Tu respuesta ha sido registrada.',
+            'show_progress'     => '1',
+            'theme_color'       => '#4F46E5',
+            'notify_admin'      => '',
+            'notify_respondent' => '0',
         ) );
         ?>
         <div class="formularios-settings-panel">
             <p>
-                <label><?php esc_html_e( 'Submit Button Text', 'formularios' ); ?></label>
+                <label>Texto del boton de envio</label>
                 <input type="text" name="formularios_settings[submit_text]" value="<?php echo esc_attr( $settings['submit_text'] ); ?>" class="widefat" />
             </p>
             <p>
-                <label><?php esc_html_e( 'Success Message', 'formularios' ); ?></label>
+                <label>Mensaje de exito</label>
                 <textarea name="formularios_settings[success_msg]" class="widefat" rows="3"><?php echo esc_textarea( $settings['success_msg'] ); ?></textarea>
             </p>
             <p>
                 <label>
                     <input type="checkbox" name="formularios_settings[show_progress]" value="1" <?php checked( $settings['show_progress'], '1' ); ?> />
-                    <?php esc_html_e( 'Show progress bar (multi-section forms)', 'formularios' ); ?>
+                    Mostrar barra de progreso (formularios con secciones)
                 </label>
             </p>
             <p>
-                <label><?php esc_html_e( 'Theme Color', 'formularios' ); ?></label>
+                <label>Color del tema</label>
                 <input type="color" name="formularios_settings[theme_color]" value="<?php echo esc_attr( $settings['theme_color'] ); ?>" />
             </p>
             <hr>
             <p>
-                <label><?php esc_html_e( 'Shortcode', 'formularios' ); ?></label>
+                <label>Enviar notificacion por email a (uno por linea)</label>
+                <textarea name="formularios_settings[notify_admin]" class="widefat" rows="3" placeholder="admin@ejemplo.com"><?php echo esc_textarea( $settings['notify_admin'] ); ?></textarea>
+                <small style="color:#6B7280;">Direcciones de email que recibiran una copia de cada respuesta.</small>
+            </p>
+            <p>
+                <label>
+                    <input type="checkbox" name="formularios_settings[notify_respondent]" value="1" <?php checked( $settings['notify_respondent'], '1' ); ?> />
+                    Enviar copia al encuestado (si el formulario tiene campo de email)
+                </label>
+            </p>
+            <hr>
+            <p>
+                <label>Shortcode</label>
                 <code style="display:block;padding:8px;background:#f0f0f1;margin-top:4px;">[formulario id="<?php echo esc_attr( $post->ID ); ?>"]</code>
             </p>
         </div>
@@ -180,10 +224,12 @@ class Formularios_Builder {
         if ( isset( $_POST['formularios_settings'] ) ) {
             $raw = $_POST['formularios_settings'];
             $settings = array(
-                'submit_text'   => sanitize_text_field( $raw['submit_text'] ?? '' ),
-                'success_msg'   => sanitize_textarea_field( $raw['success_msg'] ?? '' ),
-                'show_progress' => isset( $raw['show_progress'] ) ? '1' : '0',
-                'theme_color'   => sanitize_hex_color( $raw['theme_color'] ?? '#4F46E5' ),
+                'submit_text'       => sanitize_text_field( $raw['submit_text'] ?? '' ),
+                'success_msg'       => sanitize_textarea_field( $raw['success_msg'] ?? '' ),
+                'show_progress'     => isset( $raw['show_progress'] ) ? '1' : '0',
+                'theme_color'       => sanitize_hex_color( $raw['theme_color'] ?? '#4F46E5' ),
+                'notify_admin'      => sanitize_textarea_field( $raw['notify_admin'] ?? '' ),
+                'notify_respondent' => isset( $raw['notify_respondent'] ) ? '1' : '0',
             );
             update_post_meta( $post_id, '_formularios_settings', $settings );
         }
@@ -210,7 +256,17 @@ class Formularios_Builder {
                     $item['options']     = array();
                     if ( ! empty( $el['options'] ) && is_array( $el['options'] ) ) {
                         foreach ( $el['options'] as $opt ) {
-                            $item['options'][] = sanitize_text_field( $opt );
+                            if ( is_array( $opt ) ) {
+                                $item['options'][] = array(
+                                    'label'         => sanitize_text_field( $opt['label'] ?? '' ),
+                                    'go_to_section' => sanitize_text_field( $opt['go_to_section'] ?? '' ),
+                                );
+                            } else {
+                                $item['options'][] = array(
+                                    'label'         => sanitize_text_field( $opt ),
+                                    'go_to_section' => '',
+                                );
+                            }
                         }
                     }
                     break;
@@ -257,7 +313,7 @@ class Formularios_Builder {
                 'embed_url' => 'https://www.youtube.com/embed/' . $video_id,
             ) );
         } else {
-            wp_send_json_error( __( 'Invalid YouTube URL', 'formularios' ) );
+            wp_send_json_error( 'URL de YouTube invalida' );
         }
     }
 }

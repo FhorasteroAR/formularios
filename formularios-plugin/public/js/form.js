@@ -13,6 +13,22 @@
         var hasSections = $sections.length > 0;
         var currentSection = 1;
         var totalSections = $sections.length;
+        var i18n = (typeof formulariosFront !== 'undefined' && formulariosFront.i18n) ? formulariosFront.i18n : {};
+
+        // Parse branching data
+        var branchingMap = {};
+        var branchingData = $wrap.attr('data-branching');
+        if (branchingData) {
+            try {
+                branchingMap = JSON.parse(branchingData);
+            } catch(e) {
+                branchingMap = {};
+            }
+        }
+        var hasBranching = Object.keys(branchingMap).length > 0;
+
+        // Track section visit history for back navigation with branching
+        var sectionHistory = [1];
 
         if (hasSections) {
             updateProgress();
@@ -22,16 +38,33 @@
         // Next button
         $wrap.on('click', '.fm-btn-next', function() {
             if (!validateSection(currentSection)) return;
-            currentSection++;
-            showSection(currentSection);
-            updateProgress();
-            updateNavButtons();
-            scrollToTop();
+
+            var nextSection = determineNextSection(currentSection);
+
+            if (nextSection === '__end__') {
+                // Submit the form
+                $form.trigger('submit');
+                return;
+            }
+
+            if (nextSection > 0 && nextSection <= totalSections) {
+                currentSection = nextSection;
+                sectionHistory.push(currentSection);
+                showSection(currentSection);
+                updateProgress();
+                updateNavButtons();
+                scrollToTop();
+            }
         });
 
         // Previous button
         $wrap.on('click', '.fm-btn-prev', function() {
-            currentSection--;
+            if (hasBranching && sectionHistory.length > 1) {
+                sectionHistory.pop();
+                currentSection = sectionHistory[sectionHistory.length - 1];
+            } else {
+                currentSection--;
+            }
             showSection(currentSection);
             updateProgress();
             updateNavButtons();
@@ -46,7 +79,7 @@
             if (!hasSections && !validateAll()) return;
 
             var $submitBtn = $form.find('.fm-btn-submit');
-            $submitBtn.prop('disabled', true).text('Sending...');
+            $submitBtn.prop('disabled', true).text(i18n.sending || 'Enviando...');
 
             var formData = $form.serialize();
             formData += '&action=formularios_submit';
@@ -64,12 +97,12 @@
                         if (response.data && response.data.validation) {
                             showValidationErrors(response.data.validation);
                         }
-                        $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Submit');
+                        $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Enviar');
                     }
                 },
                 error: function() {
-                    alert('An error occurred. Please try again.');
-                    $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Submit');
+                    alert(i18n.error_generic || 'Ocurrio un error. Intenta de nuevo.');
+                    $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Enviar');
                 }
             });
         });
@@ -101,9 +134,72 @@
             var $next = $wrap.find('.fm-btn-next');
             var $submit = $wrap.find('.fm-btn-submit');
 
-            $prev.toggle(currentSection > 1);
-            $next.toggle(currentSection < totalSections);
-            $submit.toggle(currentSection === totalSections);
+            if (hasBranching) {
+                $prev.toggle(sectionHistory.length > 1);
+            } else {
+                $prev.toggle(currentSection > 1);
+            }
+
+            // For branching: check if current section might end the form
+            var nextSection = determineNextSection(currentSection);
+            if (nextSection === '__end__' || currentSection === totalSections) {
+                $next.hide();
+                $submit.show();
+            } else {
+                $next.toggle(currentSection < totalSections);
+                $submit.toggle(currentSection === totalSections);
+            }
+        }
+
+        /**
+         * Determine which section to go to next based on branching rules.
+         * Returns section number (1-based), '__end__', or currentSection + 1.
+         */
+        function determineNextSection(fromSection) {
+            if (!hasBranching) return fromSection + 1;
+
+            var $currentSection = $sections.filter('[data-section="' + fromSection + '"]');
+
+            // Check all branching fields in the current section
+            for (var fieldName in branchingMap) {
+                var $field = $currentSection.find('[name="' + fieldName + '"]');
+                var selectedValue = '';
+
+                if ($field.is('select')) {
+                    selectedValue = $field.val();
+                } else if ($field.is(':radio')) {
+                    selectedValue = $currentSection.find('[name="' + fieldName + '"]:checked').val() || '';
+                }
+
+                if (selectedValue && branchingMap[fieldName][selectedValue]) {
+                    var target = branchingMap[fieldName][selectedValue];
+
+                    if (target === '__end__') {
+                        return '__end__';
+                    }
+
+                    // Find section number by section ID
+                    var targetNum = -1;
+                    $sections.each(function() {
+                        if ($(this).attr('data-section-id') === target) {
+                            targetNum = parseInt($(this).attr('data-section'), 10);
+                        }
+                    });
+
+                    if (targetNum > 0) {
+                        return targetNum;
+                    }
+                }
+            }
+
+            return fromSection + 1;
+        }
+
+        // Update nav buttons when a branching field changes
+        if (hasBranching) {
+            $form.on('change', 'select, input[type="radio"]', function() {
+                updateNavButtons();
+            });
         }
 
         // --- Validation ---
@@ -143,7 +239,7 @@
 
                 if (value.trim() === '') {
                     $field.addClass('has-error');
-                    $errorMsg.text('This field is required.').show();
+                    $errorMsg.text(i18n.required_error || 'Este campo es obligatorio.').show();
                     valid = false;
                     return;
                 }
@@ -153,7 +249,7 @@
                     var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     if (!emailRegex.test(value)) {
                         $field.addClass('has-error');
-                        $errorMsg.text('Please enter a valid email.').show();
+                        $errorMsg.text(i18n.email_error || 'Ingresa un email valido.').show();
                         valid = false;
                     }
                 }

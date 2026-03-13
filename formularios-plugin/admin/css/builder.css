@@ -348,6 +348,10 @@
     box-sizing: border-box;
 }
 
+.meta-box-sortables select {
+    max-width: 35%;
+}
+
 .fm-option-remove {
     background: none;
     border: 1px solid var(--fm-gray-200);

@@ -28,7 +28,7 @@ class Formularios_Submissions {
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $sql );
 
-        update_option( 'formularios_db_version', '1.1.0' );
+        update_option( 'formularios_db_version', FORMULARIOS_VERSION );
     }
 
     public function handle_submission() {

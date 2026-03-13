@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Formularios
  * Description: Crea y muestra formularios modernos usando shortcodes. Construye formularios con preguntas, titulos, imagenes, videos y secciones de multiples pasos.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Formularios Team
  * Text Domain: formularios
  * Domain Path: /languages
@@ -45,11 +45,24 @@ final class Formularios {
         new Formularios_Captcha();
 
         register_activation_hook( __FILE__, array( $this, 'activate' ) );
+        add_action( 'init', array( $this, 'maybe_upgrade' ) );
     }
 
     public function activate() {
         Formularios_Submissions::create_table();
         flush_rewrite_rules();
+    }
+
+    /**
+     * Check if the DB schema needs to be created or upgraded.
+     * This handles the case where the plugin is updated without
+     * re-activation (the activation hook does not fire on updates).
+     */
+    public function maybe_upgrade() {
+        $db_version = get_option( 'formularios_db_version', '0' );
+        if ( version_compare( $db_version, FORMULARIOS_VERSION, '<' ) ) {
+            Formularios_Submissions::create_table();
+        }
     }
 }
 

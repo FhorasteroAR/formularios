@@ -340,7 +340,9 @@
 }
 
 .fm-option-row .fm-input {
-    flex: 1;
+    flex: 1 1 0%;
+    width: auto;
+    min-width: 0;
     padding: 12px 16px;
     font-size: 14px;
     min-height: 44px;

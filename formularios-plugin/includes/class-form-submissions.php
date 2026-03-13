@@ -14,21 +14,25 @@ class Formularios_Submissions {
         $table = $wpdb->prefix . 'formularios_submissions';
         $charset = $wpdb->get_charset_collate();
 
-        $sql = "CREATE TABLE IF NOT EXISTS {$table} (
+        $sql = "CREATE TABLE {$table} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             form_id BIGINT UNSIGNED NOT NULL,
             data LONGTEXT NOT NULL,
             ip_address VARCHAR(45) DEFAULT '',
             user_agent VARCHAR(255) DEFAULT '',
             submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
+            PRIMARY KEY  (id),
             KEY form_id (form_id)
         ) {$charset};";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $sql );
 
-        update_option( 'formularios_db_version', FORMULARIOS_VERSION );
+        // Only mark as upgraded if the table actually exists now.
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+        if ( $table_exists ) {
+            update_option( 'formularios_db_version', FORMULARIOS_VERSION );
+        }
     }
 
     public function handle_submission() {
@@ -134,6 +138,12 @@ class Formularios_Submissions {
         $table = $wpdb->prefix . 'formularios_submissions';
 
         $ip = $this->get_client_ip();
+
+        // Ensure table exists before inserting
+        $table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+        if ( ! $table_exists ) {
+            self::create_table();
+        }
 
         $inserted = $wpdb->insert( $table, array(
             'form_id'      => $form_id,

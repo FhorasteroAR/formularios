@@ -313,14 +313,16 @@
 
                 if (!this.files || this.files.length === 0) return;
 
-                var file = this.files[0];
                 var maxSize = parseInt($input.attr('data-max-size') || '5', 10);
                 var maxBytes = maxSize * 1024 * 1024;
 
-                if (file.size > maxBytes) {
-                    $field.addClass('has-error');
-                    $errorMsg.text((i18n.file_too_large || 'El archivo es demasiado grande.') + ' Max: ' + maxSize + ' MB').show();
-                    valid = false;
+                for (var i = 0; i < this.files.length; i++) {
+                    if (this.files[i].size > maxBytes) {
+                        $field.addClass('has-error');
+                        $errorMsg.text('"' + this.files[i].name + '" ' + (i18n.file_too_large || 'es demasiado grande.') + ' Max: ' + maxSize + ' MB').show();
+                        valid = false;
+                        return false; // break .each
+                    }
                 }
             });
             return valid;

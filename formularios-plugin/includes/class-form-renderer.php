@@ -81,7 +81,7 @@ class Formularios_Renderer {
                 'required_error' => 'Este campo es obligatorio.',
                 'email_error'    => 'Ingresa un email valido.',
                 'error_generic'  => 'Ocurrio un error. Intenta de nuevo.',
-                'file_too_large' => 'El archivo es demasiado grande.',
+                'file_too_large' => 'es demasiado grande.',
                 'file_type_err'  => 'Tipo de archivo no permitido.',
             ),
         ) );
@@ -284,7 +284,7 @@ class Formularios_Renderer {
                     }
                     $max_size = absint( $el['max_size'] ?? 5 );
                     echo '<div class="fm-file-upload-wrap">';
-                    echo '<input type="file" name="' . esc_attr( $name ) . '" class="fm-control fm-file-input" data-max-size="' . esc_attr( $max_size ) . '"' . $accept . $req_attr . ' />';
+                    echo '<input type="file" name="' . esc_attr( $name ) . '[]" class="fm-control fm-file-input" data-max-size="' . esc_attr( $max_size ) . '"' . $accept . $req_attr . ' multiple />';
                     if ( ! empty( $el['accepted_types'] ) || $max_size ) {
                         echo '<p class="fm-file-hint">';
                         $hints = array();
@@ -292,7 +292,7 @@ class Formularios_Renderer {
                             $hints[] = 'Formatos: ' . esc_html( $el['accepted_types'] );
                         }
                         if ( $max_size ) {
-                            $hints[] = 'Max: ' . esc_html( $max_size ) . ' MB';
+                            $hints[] = 'Max: ' . esc_html( $max_size ) . ' MB por archivo';
                         }
                         echo esc_html( implode( ' | ', $hints ) );
                         echo '</p>';

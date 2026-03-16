@@ -164,6 +164,11 @@ class Formularios_Builder {
             'success_msg'       => 'Gracias! Tu respuesta ha sido registrada.',
             'show_progress'     => '1',
             'theme_color'       => '#4F46E5',
+            'accent_color'      => '#10B981',
+            'btn_style'         => 'rounded',
+            'shadow_style'      => 'soft',
+            'border_radius'     => 'medium',
+            'font_family'       => 'system',
             'notify_admin'      => '',
             'notify_respondent' => '0',
         ) );
@@ -183,9 +188,50 @@ class Formularios_Builder {
                     Mostrar barra de progreso (formularios con secciones)
                 </label>
             </p>
+            <hr>
+            <p style="margin-bottom:4px;"><strong>Apariencia</strong></p>
             <p>
-                <label>Color del tema</label>
+                <label>Color primario</label>
                 <input type="color" name="formularios_settings[theme_color]" value="<?php echo esc_attr( $settings['theme_color'] ); ?>" />
+            </p>
+            <p>
+                <label>Color de acento (exito, iconos)</label>
+                <input type="color" name="formularios_settings[accent_color]" value="<?php echo esc_attr( $settings['accent_color'] ); ?>" />
+            </p>
+            <p>
+                <label>Estilo de botones</label>
+                <select name="formularios_settings[btn_style]" class="widefat">
+                    <option value="rounded" <?php selected( $settings['btn_style'], 'rounded' ); ?>>Redondeado</option>
+                    <option value="pill" <?php selected( $settings['btn_style'], 'pill' ); ?>>Pastilla</option>
+                    <option value="square" <?php selected( $settings['btn_style'], 'square' ); ?>>Cuadrado</option>
+                </select>
+            </p>
+            <p>
+                <label>Intensidad de sombra</label>
+                <select name="formularios_settings[shadow_style]" class="widefat">
+                    <option value="none" <?php selected( $settings['shadow_style'], 'none' ); ?>>Sin sombra</option>
+                    <option value="soft" <?php selected( $settings['shadow_style'], 'soft' ); ?>>Suave</option>
+                    <option value="medium" <?php selected( $settings['shadow_style'], 'medium' ); ?>>Media</option>
+                    <option value="strong" <?php selected( $settings['shadow_style'], 'strong' ); ?>>Fuerte</option>
+                </select>
+            </p>
+            <p>
+                <label>Radio de bordes</label>
+                <select name="formularios_settings[border_radius]" class="widefat">
+                    <option value="none" <?php selected( $settings['border_radius'], 'none' ); ?>>Sin bordes</option>
+                    <option value="small" <?php selected( $settings['border_radius'], 'small' ); ?>>Pequeno</option>
+                    <option value="medium" <?php selected( $settings['border_radius'], 'medium' ); ?>>Mediano</option>
+                    <option value="large" <?php selected( $settings['border_radius'], 'large' ); ?>>Grande</option>
+                </select>
+            </p>
+            <p>
+                <label>Tipografia</label>
+                <select name="formularios_settings[font_family]" class="widefat">
+                    <option value="system" <?php selected( $settings['font_family'], 'system' ); ?>>Sistema (por defecto)</option>
+                    <option value="inter" <?php selected( $settings['font_family'], 'inter' ); ?>>Inter</option>
+                    <option value="poppins" <?php selected( $settings['font_family'], 'poppins' ); ?>>Poppins</option>
+                    <option value="merriweather" <?php selected( $settings['font_family'], 'merriweather' ); ?>>Merriweather</option>
+                </select>
             </p>
             <hr>
             <p>
@@ -227,11 +273,22 @@ class Formularios_Builder {
 
         if ( isset( $_POST['formularios_settings'] ) ) {
             $raw = $_POST['formularios_settings'];
+
+            $allowed_btn     = array( 'rounded', 'pill', 'square' );
+            $allowed_shadow  = array( 'none', 'soft', 'medium', 'strong' );
+            $allowed_radius  = array( 'none', 'small', 'medium', 'large' );
+            $allowed_font    = array( 'system', 'inter', 'poppins', 'merriweather' );
+
             $settings = array(
                 'submit_text'       => sanitize_text_field( $raw['submit_text'] ?? '' ),
                 'success_msg'       => sanitize_textarea_field( $raw['success_msg'] ?? '' ),
                 'show_progress'     => isset( $raw['show_progress'] ) ? '1' : '0',
                 'theme_color'       => sanitize_hex_color( $raw['theme_color'] ?? '#4F46E5' ),
+                'accent_color'      => sanitize_hex_color( $raw['accent_color'] ?? '#10B981' ),
+                'btn_style'         => in_array( $raw['btn_style'] ?? '', $allowed_btn, true ) ? $raw['btn_style'] : 'rounded',
+                'shadow_style'      => in_array( $raw['shadow_style'] ?? '', $allowed_shadow, true ) ? $raw['shadow_style'] : 'soft',
+                'border_radius'     => in_array( $raw['border_radius'] ?? '', $allowed_radius, true ) ? $raw['border_radius'] : 'medium',
+                'font_family'       => in_array( $raw['font_family'] ?? '', $allowed_font, true ) ? $raw['font_family'] : 'system',
                 'notify_admin'      => sanitize_textarea_field( $raw['notify_admin'] ?? '' ),
                 'notify_respondent' => isset( $raw['notify_respondent'] ) ? '1' : '0',
             );

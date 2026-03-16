@@ -91,14 +91,25 @@ class Formularios_Captcha {
     /**
      * Verify a reCAPTCHA token server-side.
      *
+     * Returns true (pass), false (fail), or null (verification unavailable,
+     * e.g. network error — caller should allow the submission through).
+     *
      * @param string $token The g-recaptcha-response token.
-     * @return bool Whether the token is valid.
+     * @return bool|null true = passed, false = failed, null = could not verify.
      */
     public static function verify_token( $token ) {
-        if ( empty( $token ) ) return false;
-
         $secret = get_option( 'formularios_captcha_secret_key', '' );
-        if ( empty( $secret ) ) return false;
+
+        // No secret configured — cannot verify; allow through.
+        if ( empty( $secret ) ) {
+            return null;
+        }
+
+        // Empty token — client couldn't obtain one (script blocked / failed to load).
+        // Allow through gracefully rather than blocking all submissions.
+        if ( empty( $token ) ) {
+            return null;
+        }
 
         $response = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', array(
             'body' => array(
@@ -109,11 +120,17 @@ class Formularios_Captcha {
             'timeout' => 10,
         ) );
 
+        // Network error — Google unreachable. Allow through rather than
+        // blocking every submission when the server can't reach Google.
         if ( is_wp_error( $response ) ) {
-            return false;
+            return null;
         }
 
         $body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( ! is_array( $body ) ) {
+            return null;
+        }
 
         // reCAPTCHA v3 returns a score (0.0-1.0). Threshold at 0.5.
         if ( ! empty( $body['success'] ) ) {

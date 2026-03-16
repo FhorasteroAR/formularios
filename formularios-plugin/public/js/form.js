@@ -87,18 +87,48 @@
             $submitBtn.prop('disabled', true).text(i18n.sending || 'Enviando...');
 
             // If captcha is enabled, get token first
-            if (captchaEnabled && captchaSiteKey && typeof grecaptcha !== 'undefined') {
-                grecaptcha.ready(function() {
-                    grecaptcha.execute(captchaSiteKey, { action: 'formularios_submit' }).then(function(token) {
-                        submitForm(token);
-                    }).catch(function() {
-                        submitForm('');
-                    });
+            if (captchaEnabled && captchaSiteKey) {
+                getCaptchaToken(function(token) {
+                    submitForm(token);
                 });
             } else {
                 submitForm('');
             }
         });
+
+        function getCaptchaToken(callback) {
+            // Wait for grecaptcha to be available (script may still be loading)
+            if (typeof grecaptcha === 'undefined') {
+                var attempts = 0;
+                var poll = setInterval(function() {
+                    attempts++;
+                    if (typeof grecaptcha !== 'undefined') {
+                        clearInterval(poll);
+                        executeCaptcha(callback);
+                    } else if (attempts >= 50) {
+                        // After ~5 seconds, give up and submit without token
+                        clearInterval(poll);
+                        callback('');
+                    }
+                }, 100);
+            } else {
+                executeCaptcha(callback);
+            }
+        }
+
+        function executeCaptcha(callback) {
+            try {
+                grecaptcha.ready(function() {
+                    grecaptcha.execute(captchaSiteKey, { action: 'formularios_submit' }).then(function(token) {
+                        callback(token || '');
+                    }).catch(function() {
+                        callback('');
+                    });
+                });
+            } catch(e) {
+                callback('');
+            }
+        }
 
         function submitForm(captchaToken) {
             var $submitBtn = $form.find('.fm-btn-submit');

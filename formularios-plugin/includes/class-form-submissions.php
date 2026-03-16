@@ -44,7 +44,12 @@ class Formularios_Submissions {
         // Verify CAPTCHA if enabled
         if ( Formularios_Captcha::is_enabled() ) {
             $captcha_token = isset( $_POST['formularios_captcha_token'] ) ? sanitize_text_field( $_POST['formularios_captcha_token'] ) : '';
-            if ( ! Formularios_Captcha::verify_token( $captcha_token ) ) {
+            $captcha_result = Formularios_Captcha::verify_token( $captcha_token );
+
+            // false = definitively failed (Google returned success:false or low score).
+            // null  = could not verify (network error, empty token, no secret) — allow through.
+            // true  = passed.
+            if ( false === $captcha_result ) {
                 wp_send_json_error( 'La verificacion de captcha fallo. Intenta de nuevo.' );
             }
         }

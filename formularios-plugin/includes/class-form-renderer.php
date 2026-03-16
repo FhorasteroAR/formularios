@@ -284,9 +284,11 @@ class Formularios_Renderer {
                     }
                     $max_size = absint( $el['max_size'] ?? 5 );
                     echo '<div class="fm-file-upload-wrap">';
-                    echo '<input type="file" name="' . esc_attr( $name ) . '[]" class="fm-control fm-file-input" data-max-size="' . esc_attr( $max_size ) . '"' . $accept . $req_attr . ' multiple />';
+                    echo '<input type="file" name="' . esc_attr( $name ) . '[]" class="fm-control fm-file-input" data-max-size="' . esc_attr( $max_size ) . '"' . $accept . $req_attr . ' multiple style="display:none" />';
+                    echo '<div class="fm-file-dropzone" tabindex="0">';
+                    echo '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+                    echo '<span class="fm-file-dropzone-text">Haz clic o arrastra archivos aqui</span>';
                     if ( ! empty( $el['accepted_types'] ) || $max_size ) {
-                        echo '<p class="fm-file-hint">';
                         $hints = array();
                         if ( ! empty( $el['accepted_types'] ) ) {
                             $hints[] = 'Formatos: ' . esc_html( $el['accepted_types'] );
@@ -294,9 +296,10 @@ class Formularios_Renderer {
                         if ( $max_size ) {
                             $hints[] = 'Max: ' . esc_html( $max_size ) . ' MB por archivo';
                         }
-                        echo esc_html( implode( ' | ', $hints ) );
-                        echo '</p>';
+                        echo '<span class="fm-file-dropzone-hint">' . esc_html( implode( ' | ', $hints ) ) . '</span>';
                     }
+                    echo '</div>';
+                    echo '<ul class="fm-file-list"></ul>';
                     echo '</div>';
                     break;
 

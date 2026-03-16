@@ -168,6 +168,105 @@
                    .find('.fm-error-msg').hide().text('');
         });
 
+        // --- File Upload Queue ---
+
+        // Each file input gets a managed file queue via DataTransfer
+        $form.find('.fm-file-input').each(function() {
+            var input = this;
+            input._fileQueue = new DataTransfer();
+        });
+
+        // Click on dropzone triggers the hidden file input
+        $form.on('click', '.fm-file-dropzone', function() {
+            $(this).closest('.fm-file-upload-wrap').find('.fm-file-input').trigger('click');
+        });
+
+        // Keyboard accessibility for dropzone
+        $form.on('keydown', '.fm-file-dropzone', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                $(this).trigger('click');
+            }
+        });
+
+        // Drag & drop on dropzone
+        $form.on('dragover dragenter', '.fm-file-dropzone', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).addClass('fm-file-dropzone-hover');
+        });
+
+        $form.on('dragleave drop', '.fm-file-dropzone', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).removeClass('fm-file-dropzone-hover');
+        });
+
+        $form.on('drop', '.fm-file-dropzone', function(e) {
+            var files = e.originalEvent.dataTransfer.files;
+            if (!files || files.length === 0) return;
+            var $wrap = $(this).closest('.fm-file-upload-wrap');
+            var input = $wrap.find('.fm-file-input')[0];
+            for (var i = 0; i < files.length; i++) {
+                input._fileQueue.items.add(files[i]);
+            }
+            input.files = input._fileQueue.files;
+            renderFileList($wrap);
+            $wrap.closest('.fm-field').removeClass('has-error')
+                 .find('.fm-error-msg').hide().text('');
+        });
+
+        // When files are selected via the native input, append them to the queue
+        $form.on('change', '.fm-file-input', function() {
+            var input = this;
+            var $wrap = $(this).closest('.fm-file-upload-wrap');
+            for (var i = 0; i < this.files.length; i++) {
+                input._fileQueue.items.add(this.files[i]);
+            }
+            input.files = input._fileQueue.files;
+            renderFileList($wrap);
+        });
+
+        // Remove a file from the queue
+        $form.on('click', '.fm-file-remove-btn', function() {
+            var idx = $(this).data('index');
+            var $wrap = $(this).closest('.fm-file-upload-wrap');
+            var input = $wrap.find('.fm-file-input')[0];
+            input._fileQueue.items.remove(idx);
+            input.files = input._fileQueue.files;
+            renderFileList($wrap);
+        });
+
+        function renderFileList($wrap) {
+            var input = $wrap.find('.fm-file-input')[0];
+            var $list = $wrap.find('.fm-file-list');
+            $list.empty();
+
+            if (!input.files || input.files.length === 0) {
+                return;
+            }
+
+            for (var i = 0; i < input.files.length; i++) {
+                var file = input.files[i];
+                var sizeStr = file.size < 1024 * 1024
+                    ? (file.size / 1024).toFixed(1) + ' KB'
+                    : (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+                var $item = $('<li class="fm-file-item">' +
+                    '<span class="fm-file-item-icon">' +
+                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+                    '</span>' +
+                    '<span class="fm-file-item-name">' + escHtml(file.name) + '</span>' +
+                    '<span class="fm-file-item-size">' + escHtml(sizeStr) + '</span>' +
+                    '<button type="button" class="fm-file-remove-btn" data-index="' + i + '" title="Quitar archivo">&times;</button>' +
+                '</li>');
+                $list.append($item);
+            }
+        }
+
+        function escHtml(str) {
+            return $('<span>').text(str).html();
+        }
+
         // --- Section Navigation ---
 
         function showSection(num) {

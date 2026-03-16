@@ -157,15 +157,18 @@ class Formularios_Submissions_Page {
                                     <tr>
                                         <td class="fm-col-id"><?php echo esc_html( $row_num ); ?></td>
                                         <?php foreach ( $headers as $h ) :
-                                            $val = '';
-                                            if ( isset( $data_map[ $h['id'] ] ) ) {
-                                                $val = $data_map[ $h['id'] ]['value'];
-                                                if ( is_array( $val ) ) $val = implode( ', ', $val );
-                                            }
-                                            // For file uploads, show a link
-                                            if ( 'file' === $h['type'] && ! empty( $val ) ) : ?>
-                                                <td><a href="<?php echo esc_url( $val ); ?>" target="_blank" rel="noopener">Ver archivo</a></td>
-                                            <?php else : ?>
+                                            $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
+                                            if ( 'file' === $h['type'] && ! empty( $raw_val ) ) :
+                                                $file_urls = is_array( $raw_val ) ? $raw_val : array( $raw_val );
+                                                ?>
+                                                <td>
+                                                    <?php foreach ( $file_urls as $fi => $furl ) : ?>
+                                                        <a href="<?php echo esc_url( $furl ); ?>" target="_blank" rel="noopener"><?php echo esc_html( sprintf( 'Archivo %d', $fi + 1 ) ); ?></a><?php echo $fi < count( $file_urls ) - 1 ? ', ' : ''; ?>
+                                                    <?php endforeach; ?>
+                                                </td>
+                                            <?php else :
+                                                $val = is_array( $raw_val ) ? implode( ', ', $raw_val ) : $raw_val;
+                                                ?>
                                                 <td><?php echo esc_html( $val ); ?></td>
                                             <?php endif; ?>
                                         <?php endforeach; ?>

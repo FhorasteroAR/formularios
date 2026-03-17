@@ -28,6 +28,14 @@ class Formularios_Submissions_Page {
             array(),
             FORMULARIOS_VERSION
         );
+
+        wp_enqueue_script(
+            'formularios-submissions-page',
+            FORMULARIOS_URL . 'admin/js/submissions.js',
+            array( 'jquery' ),
+            FORMULARIOS_VERSION,
+            true
+        );
     }
 
     public function render_page() {
@@ -153,8 +161,26 @@ class Formularios_Submissions_Page {
                                         }
                                     }
                                     $row_num = $offset + $idx + 1;
+
+                                    // Build detail data for the panel
+                                    $detail_fields = array();
+                                    foreach ( $headers as $h ) {
+                                        $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
+                                        $detail_fields[] = array(
+                                            'label' => $h['label'],
+                                            'type'  => $h['type'],
+                                            'value' => $raw_val,
+                                        );
+                                    }
+                                    $detail_json = wp_json_encode( array(
+                                        'num'        => $row_num,
+                                        'fields'     => $detail_fields,
+                                        'date'       => $row->submitted_at,
+                                        'ip'         => $row->ip_address,
+                                        'user_agent' => $row->user_agent ?? '',
+                                    ), JSON_UNESCAPED_UNICODE );
                                 ?>
-                                    <tr>
+                                    <tr class="fm-submission-row" data-detail="<?php echo esc_attr( $detail_json ); ?>">
                                         <td class="fm-col-id"><?php echo esc_html( $row_num ); ?></td>
                                         <?php foreach ( $headers as $h ) :
                                             $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
@@ -178,6 +204,17 @@ class Formularios_Submissions_Page {
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Detail Panel (hidden by default) -->
+                    <div id="fm-detail-backdrop" class="fm-detail-backdrop" style="display:none"></div>
+                    <div id="fm-detail-panel" class="fm-detail-panel" style="display:none">
+                        <div class="fm-detail-header">
+                            <h2 class="fm-detail-title">Respuesta <span id="fm-detail-num"></span></h2>
+                            <button type="button" id="fm-detail-close" class="fm-detail-close">&times;</button>
+                        </div>
+                        <div id="fm-detail-body" class="fm-detail-body"></div>
+                        <div class="fm-detail-meta" id="fm-detail-meta"></div>
                     </div>
 
                     <?php if ( $total_pages > 1 ) : ?>

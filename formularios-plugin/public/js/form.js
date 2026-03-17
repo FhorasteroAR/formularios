@@ -132,60 +132,106 @@
 
         function submitForm(captchaToken) {
             var $submitBtn = $form.find('.fm-btn-submit');
+            var $overlay = $wrap.find('.fm-submit-overlay');
+            var $progressBar = $overlay.find('.fm-submit-progress-bar');
             var formData;
+            var ajaxDone = false;
+            var ajaxResponse = null;
+            var ajaxFailed = false;
+
+            // Show the progress overlay
+            showOverlay();
+
+            // Animate progress bar: fast to 70%, then slow crawl
+            $progressBar.css('width', '0%');
+            setTimeout(function() {
+                $progressBar.css('width', '70%');
+            }, 50);
+
+            var ajaxOpts = {
+                url: formulariosFront.ajax_url,
+                type: 'POST',
+                success: function(response) {
+                    ajaxDone = true;
+                    ajaxResponse = response;
+                },
+                error: function() {
+                    ajaxDone = true;
+                    ajaxFailed = true;
+                }
+            };
 
             if (hasFileUpload) {
-                // Use FormData for file uploads
                 formData = new FormData($form[0]);
                 formData.append('action', 'formularios_submit');
                 if (captchaToken) {
                     formData.append('formularios_captcha_token', captchaToken);
                 }
-
-                $.ajax({
-                    url: formulariosFront.ajax_url,
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: handleSuccess,
-                    error: handleError
-                });
+                ajaxOpts.data = formData;
+                ajaxOpts.processData = false;
+                ajaxOpts.contentType = false;
             } else {
                 var serialized = $form.serialize();
                 serialized += '&action=formularios_submit';
                 if (captchaToken) {
                     serialized += '&formularios_captcha_token=' + encodeURIComponent(captchaToken);
                 }
-
-                $.ajax({
-                    url: formulariosFront.ajax_url,
-                    type: 'POST',
-                    data: serialized,
-                    success: handleSuccess,
-                    error: handleError
-                });
+                ajaxOpts.data = serialized;
             }
 
-            function handleSuccess(response) {
-                if (response.success) {
-                    $form.fadeOut(300, function() {
-                        $wrap.find('.fm-success-message').fadeIn(300);
-                    });
-                } else {
-                    if (response.data && response.data.validation) {
-                        showValidationErrors(response.data.validation);
-                    } else if (response.data && typeof response.data === 'string') {
-                        alert(response.data);
+            $.ajax(ajaxOpts);
+
+            // Poll until ajax completes, then fill bar to 100% and show result
+            var poll = setInterval(function() {
+                if (!ajaxDone) return;
+                clearInterval(poll);
+
+                // Fill to 100%
+                $progressBar.css({ width: '100%', transition: 'width 0.3s ease' });
+
+                setTimeout(function() {
+                    if (ajaxFailed) {
+                        hideOverlay();
+                        alert(i18n.error_generic || 'Ocurrio un error. Intenta de nuevo.');
+                        $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Enviar');
+                        return;
                     }
-                    $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Enviar');
-                }
-            }
 
-            function handleError() {
-                alert(i18n.error_generic || 'Ocurrio un error. Intenta de nuevo.');
-                $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Enviar');
-            }
+                    if (ajaxResponse && ajaxResponse.success) {
+                        // Transition from overlay to success
+                        $overlay.fadeOut(300, function() {
+                            $wrap.find('.fm-success-message').fadeIn(400);
+                        });
+                    } else {
+                        hideOverlay();
+                        if (ajaxResponse && ajaxResponse.data && ajaxResponse.data.validation) {
+                            showValidationErrors(ajaxResponse.data.validation);
+                        } else if (ajaxResponse && ajaxResponse.data && typeof ajaxResponse.data === 'string') {
+                            alert(ajaxResponse.data);
+                        }
+                        $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Enviar');
+                    }
+                }, 400);
+            }, 100);
+        }
+
+        function showOverlay() {
+            var $overlay = $wrap.find('.fm-submit-overlay');
+            var $progressBar = $overlay.find('.fm-submit-progress-bar');
+            // Reset progress bar transition for the 0→70% phase
+            $progressBar.css({ width: '0%', transition: 'width 1.8s cubic-bezier(0.4, 0, 0.2, 1)' });
+            $form.css({ opacity: 0, transform: 'scale(0.97)', transition: 'opacity 0.3s ease, transform 0.3s ease', pointerEvents: 'none' });
+            setTimeout(function() {
+                $form.hide();
+                $overlay.css('display', 'flex').hide().fadeIn(250);
+            }, 300);
+        }
+
+        function hideOverlay() {
+            var $overlay = $wrap.find('.fm-submit-overlay');
+            $overlay.fadeOut(200, function() {
+                $form.css({ opacity: '', transform: '', transition: '', pointerEvents: '', display: '' }).show();
+            });
         }
 
         // Store original button text

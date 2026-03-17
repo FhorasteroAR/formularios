@@ -216,6 +216,18 @@ class Formularios_Renderer {
                 <?php endif; ?>
             </form>
 
+            <div class="fm-submit-overlay" style="display:none">
+                <div class="fm-submit-overlay-inner">
+                    <div class="fm-submit-spinner">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83"/></svg>
+                    </div>
+                    <p class="fm-submit-overlay-text">Enviando respuesta...</p>
+                    <div class="fm-submit-progress-track">
+                        <div class="fm-submit-progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="fm-success-message" style="display:none">
                 <div class="fm-success-icon">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>

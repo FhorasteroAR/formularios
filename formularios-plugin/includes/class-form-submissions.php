@@ -98,6 +98,15 @@ class Formularios_Submissions {
                 $errors[ $name ] = 'Ingresa una direccion de email valida.';
             }
 
+            // Validate email confirmation
+            if ( 'email' === $el['input_type'] && '' !== $value && is_email( $value ) ) {
+                $confirm_key = $name . '_confirm';
+                $confirm_val = isset( $_POST[ $confirm_key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $confirm_key ] ) ) : '';
+                if ( strtolower( $value ) !== strtolower( $confirm_val ) ) {
+                    $errors[ $name ] = 'Los emails no coinciden.';
+                }
+            }
+
             // Validate against allowed options for select/radio/checkbox
             if ( in_array( $el['input_type'], array( 'select', 'radio' ), true ) && '' !== $value && ! empty( $el['options'] ) ) {
                 $allowed = array_map( function( $opt ) {

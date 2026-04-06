@@ -102,8 +102,10 @@ class Formularios_Renderer {
                 'required_error' => 'Este campo es obligatorio.',
                 'email_error'    => 'Ingresa un email valido.',
                 'error_generic'  => 'Ocurrio un error. Intenta de nuevo.',
-                'file_too_large' => 'es demasiado grande.',
-                'file_type_err'  => 'Tipo de archivo no permitido.',
+                'file_too_large'         => 'es demasiado grande.',
+                'file_type_err'          => 'Tipo de archivo no permitido.',
+                'email_confirm_required' => 'Confirma tu email.',
+                'email_mismatch'         => 'Los emails no coinciden.',
             ),
         ) );
 
@@ -174,9 +176,11 @@ class Formularios_Renderer {
                 <?php
                 $section_index = 0;
                 $in_section = false;
+                $in_row = false;
 
                 foreach ( $elements as $i => $el ) {
                     if ( 'section' === $el['type'] ) {
+                        if ( $in_row ) { echo '</div>'; $in_row = false; }
                         if ( $in_section ) {
                             echo '</div>'; // close previous section
                         }
@@ -195,9 +199,21 @@ class Formularios_Renderer {
                         continue;
                     }
 
+                    // Determine if this element uses inline layout
+                    $is_inline = ( 'question' === $el['type'] && ! empty( $el['layout'] ) && 'full' !== $el['layout'] );
+
+                    if ( $is_inline && ! $in_row ) {
+                        echo '<div class="fm-fields-row">';
+                        $in_row = true;
+                    } elseif ( ! $is_inline && $in_row ) {
+                        echo '</div>';
+                        $in_row = false;
+                    }
+
                     $this->render_element( $el, $i );
                 }
 
+                if ( $in_row ) { echo '</div>'; }
                 if ( $in_section ) {
                     echo '</div>'; // close last section
                 }
@@ -288,8 +304,10 @@ class Formularios_Renderer {
         $req_attr = $required ? ' required' : '';
         $req_mark = $required ? ' <span class="fm-required">*</span>' : '';
         $name = 'fm_field_' . sanitize_key( $el['id'] );
+        $layout = $el['layout'] ?? 'full';
+        $layout_class = 'full' !== $layout ? ' fm-field-' . esc_attr( $layout ) : '';
         ?>
-        <div class="fm-field" data-type="<?php echo esc_attr( $el['input_type'] ); ?>">
+        <div class="fm-field<?php echo $layout_class; ?>" data-type="<?php echo esc_attr( $el['input_type'] ); ?>">
             <?php if ( ! empty( $el['label'] ) ) : ?>
                 <label class="fm-label"><?php echo esc_html( $el['label'] ); ?><?php echo $req_mark; ?></label>
             <?php endif; ?>
@@ -368,8 +386,15 @@ class Formularios_Renderer {
                     echo '</div>';
                     break;
 
+                case 'email':
+                    echo '<input type="email" name="' . esc_attr( $name ) . '" class="fm-control fm-input fm-email-input" placeholder="' . esc_attr( $el['placeholder'] ?: 'correo@ejemplo.com' ) . '"' . $req_attr . ' />';
+                    echo '<label class="fm-label fm-label-confirm">Confirmar email' . $req_mark . '</label>';
+                    echo '<input type="email" name="' . esc_attr( $name ) . '_confirm" class="fm-control fm-input fm-email-confirm" placeholder="Repite tu email"' . $req_attr . ' />';
+                    echo '<span class="fm-error-msg fm-email-match-error"></span>';
+                    break;
+
                 default:
-                    $input_type = in_array( $el['input_type'], array( 'email', 'number', 'date' ), true ) ? $el['input_type'] : 'text';
+                    $input_type = in_array( $el['input_type'], array( 'number', 'date' ), true ) ? $el['input_type'] : 'text';
                     echo '<input type="' . esc_attr( $input_type ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-input" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '"' . $req_attr . ' />';
                     break;
             }

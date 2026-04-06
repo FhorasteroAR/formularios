@@ -101,6 +101,38 @@
     line-height: 1.5;
 }
 
+/* --- Fields Row (multi-column layout) --- */
+.fm-fields-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.fm-fields-row > .fm-field {
+    margin-bottom: 24px;
+}
+
+.fm-field-half {
+    flex: 0 0 calc(50% - 8px);
+    min-width: 0;
+}
+
+.fm-field-third {
+    flex: 0 0 calc(33.333% - 11px);
+    min-width: 0;
+}
+
+@media (max-width: 600px) {
+    .fm-fields-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    .fm-field-half,
+    .fm-field-third {
+        flex: 0 0 100%;
+    }
+}
+
 /* --- Field --- */
 .fm-field {
     margin-bottom: 24px;
@@ -117,6 +149,22 @@
 
 .fm-required {
     color: var(--fm-red);
+}
+
+/* --- Email Confirmation --- */
+.fm-label-confirm {
+    margin-top: 12px;
+}
+
+.fm-email-match-error {
+    font-size: 13px;
+    color: var(--fm-red);
+    margin-top: 4px;
+    display: none;
+}
+
+.fm-field.has-error .fm-email-match-error {
+    display: block;
 }
 
 /* --- Controls --- */

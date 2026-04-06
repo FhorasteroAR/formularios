@@ -244,6 +244,11 @@
                    .find('.fm-error-msg').hide().text('');
         });
 
+        // Clear email match error on confirm field input
+        $form.on('input', '.fm-email-confirm', function() {
+            $(this).closest('.fm-field').find('.fm-email-match-error').hide().text('');
+        });
+
         // --- File Upload Queue ---
 
         // Each file input gets a managed file queue via DataTransfer
@@ -473,6 +478,22 @@
                         $field.addClass('has-error');
                         $errorMsg.text(i18n.email_error || 'Ingresa un email valido.').show();
                         valid = false;
+                    } else {
+                        // Check email confirmation match
+                        var $confirm = $field.find('.fm-email-confirm');
+                        var $matchError = $field.find('.fm-email-match-error');
+                        if ($confirm.length) {
+                            var confirmVal = $confirm.val().trim();
+                            if (confirmVal === '' && isRequired) {
+                                $field.addClass('has-error');
+                                $matchError.text(i18n.email_confirm_required || 'Confirma tu email.').show();
+                                valid = false;
+                            } else if (confirmVal !== '' && value.toLowerCase() !== confirmVal.toLowerCase()) {
+                                $field.addClass('has-error');
+                                $matchError.text(i18n.email_mismatch || 'Los emails no coinciden.').show();
+                                valid = false;
+                            }
+                        }
                     }
                 }
             });

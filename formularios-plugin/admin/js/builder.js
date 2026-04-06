@@ -16,6 +16,12 @@
         file:     'Subida de archivo'
     };
 
+    var LAYOUT_OPTIONS = {
+        full:  'Ancho completo',
+        half:  'Mitad (1/2)',
+        third: 'Tercio (1/3)'
+    };
+
     var NEEDS_OPTIONS = ['select', 'radio', 'checkbox'];
     var SUPPORTS_BRANCHING = ['select', 'radio'];
 
@@ -142,6 +148,13 @@
             }
         });
 
+        // Layout radio toggle active class
+        $('#formularios-elements-list').on('change', '.fm-layout-radio', function() {
+            var $row = $(this).closest('.fm-layout-options');
+            $row.find('.fm-layout-option').removeClass('active');
+            $(this).closest('.fm-layout-option').addClass('active');
+        });
+
         // Before form submit, sync data
         $('form#post').on('submit', function() {
             syncAllData();
@@ -190,6 +203,7 @@
                     input_type: 'text',
                     required: false,
                     placeholder: '',
+                    layout: 'full',
                     options: [],
                     accepted_types: '',
                     max_size: 5
@@ -321,6 +335,21 @@
                 html += '</select>';
                 html += '<input type="text" class="fm-input fm-data-input" data-field="placeholder" value="' + escAttr(el.placeholder) + '" placeholder="' + escAttr(formularios.i18n.placeholder_txt) + '" style="flex:1" />';
                 html += '<label class="fm-required-toggle"><input type="checkbox" class="fm-data-input" data-field="required"' + (el.required ? ' checked' : '') + ' /> ' + formularios.i18n.required + '</label>';
+                html += '</div>';
+
+                // Layout selector
+                var elLayout = el.layout || 'full';
+                html += '<div class="fm-layout-row">';
+                html += '<label class="fm-input-label">Disposicion</label>';
+                html += '<div class="fm-layout-options">';
+                for (var lk in LAYOUT_OPTIONS) {
+                    html += '<label class="fm-layout-option' + (elLayout === lk ? ' active' : '') + '">';
+                    html += '<input type="radio" name="layout_' + el.id + '" class="fm-data-input fm-layout-radio" data-field="layout" value="' + lk + '"' + (elLayout === lk ? ' checked' : '') + ' />';
+                    html += '<span class="fm-layout-icon fm-layout-icon-' + lk + '"></span>';
+                    html += '<span>' + LAYOUT_OPTIONS[lk] + '</span>';
+                    html += '</label>';
+                }
+                html += '</div>';
                 html += '</div>';
 
                 // Options area

@@ -23,6 +23,7 @@ require_once FORMULARIOS_PATH . 'includes/class-form-submissions.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-submissions-page.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-emails.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-captcha.php';
+require_once FORMULARIOS_PATH . 'includes/class-form-dashboard.php';
 
 final class Formularios {
 
@@ -43,6 +44,7 @@ final class Formularios {
         new Formularios_Submissions_Page();
         new Formularios_Emails();
         new Formularios_Captcha();
+        new Formularios_Dashboard();
 
         register_activation_hook( __FILE__, array( $this, 'activate' ) );
         add_action( 'init', array( $this, 'maybe_upgrade' ) );

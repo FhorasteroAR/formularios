@@ -314,6 +314,8 @@ class Formularios_Builder {
                     $item['input_type']     = sanitize_text_field( $el['input_type'] ?? 'text' );
                     $item['required']       = ! empty( $el['required'] );
                     $item['placeholder']    = sanitize_text_field( $el['placeholder'] ?? '' );
+                    $allowed_layouts        = array( 'full', 'half', 'third' );
+                    $item['layout']         = in_array( $el['layout'] ?? '', $allowed_layouts, true ) ? $el['layout'] : 'full';
                     $item['accepted_types'] = sanitize_text_field( $el['accepted_types'] ?? '' );
                     $item['max_size']       = absint( $el['max_size'] ?? 5 );
                     $item['options']        = array();

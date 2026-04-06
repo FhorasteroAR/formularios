@@ -1,0 +1,303 @@
+/* ==========================================================================
+   Formularios - Dashboard Styles
+   ========================================================================== */
+
+.fm-dashboard-wrap {
+    max-width: 1200px;
+}
+
+.fm-dashboard-wrap h1 {
+    margin-bottom: 24px;
+}
+
+/* Summary Cards */
+.fm-dash-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.fm-dash-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.fm-dash-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+.fm-dash-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.fm-dash-icon-total {
+    background: #EEF2FF;
+    color: #4F46E5;
+}
+
+.fm-dash-icon-today {
+    background: #D1FAE5;
+    color: #059669;
+}
+
+.fm-dash-icon-week {
+    background: #FEF3C7;
+    color: #D97706;
+}
+
+.fm-dash-icon-month {
+    background: #E0E7FF;
+    color: #4338CA;
+}
+
+.fm-dash-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fm-dash-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1F2937;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.fm-dash-card-label {
+    font-size: 13px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+/* Chart */
+.fm-dash-chart-wrap {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 28px;
+}
+
+.fm-dash-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.fm-dash-chart-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1F2937;
+    margin: 0;
+}
+
+.fm-dash-chart-period {
+    font-size: 13px;
+    color: #9CA3AF;
+    font-weight: 500;
+    padding: 4px 12px;
+    background: #F3F4F6;
+    border-radius: 20px;
+}
+
+.fm-dash-chart-container {
+    position: relative;
+    height: 300px;
+}
+
+/* Table */
+.fm-dash-table-wrap {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.fm-dash-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.fm-dash-table-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1F2937;
+    margin: 0;
+}
+
+.fm-dash-form-count {
+    font-size: 13px;
+    color: #9CA3AF;
+    font-weight: 500;
+}
+
+.fm-dash-table {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+}
+
+.fm-dash-table thead th {
+    background: #F9FAFB;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6B7280;
+    padding: 12px 16px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.fm-dash-table tbody td {
+    padding: 14px 16px;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #F3F4F6;
+    vertical-align: middle;
+}
+
+.fm-dash-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.fm-dtcol-name {
+    width: 25%;
+}
+
+.fm-dtcol-stat {
+    width: 10%;
+    text-align: center !important;
+}
+
+.fm-dtcol-bar {
+    width: 25%;
+}
+
+.fm-dtcol-date {
+    width: 15%;
+}
+
+.fm-dtcol-status {
+    width: 10%;
+    text-align: center !important;
+}
+
+.fm-dash-table tbody td.fm-dtcol-stat {
+    text-align: center;
+    font-weight: 600;
+}
+
+.fm-dash-form-name {
+    font-weight: 600;
+    color: #1F2937;
+}
+
+.fm-dash-form-id {
+    font-size: 12px;
+    color: #9CA3AF;
+    margin-left: 6px;
+}
+
+/* Distribution bar */
+.fm-dash-bar-track {
+    width: 100%;
+    height: 8px;
+    background: #F3F4F6;
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.fm-dash-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4F46E5, #818CF8);
+    border-radius: 99px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fm-dash-bar-pct {
+    font-size: 12px;
+    color: #9CA3AF;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Status badge */
+.fm-dash-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.fm-dash-status-publish {
+    background: #D1FAE5;
+    color: #065F46;
+}
+
+.fm-dash-status-draft {
+    background: #FEF3C7;
+    color: #92400E;
+}
+
+.fm-dash-status-private {
+    background: #E5E7EB;
+    color: #374151;
+}
+
+/* Last submission date */
+.fm-dash-last-date {
+    font-size: 13px;
+    color: #6B7280;
+}
+
+.fm-dash-no-data {
+    color: #D1D5DB;
+    font-style: italic;
+}
+
+/* Empty state */
+.fm-dash-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9CA3AF;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .fm-dash-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .fm-dash-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .fm-dash-chart-container {
+        height: 200px;
+    }
+}

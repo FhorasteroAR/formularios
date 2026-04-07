@@ -1,156 +1,216 @@
 (function($) {
     'use strict';
 
+    var chartInstance = null;
+
     $(document).ready(function() {
         if (typeof fmDashboard === 'undefined') return;
 
-        renderStats();
-        renderChart();
-        renderTable();
+        // Set default date range inputs
+        $('#fm-date-from').val(fmDashboard.date_from);
+        $('#fm-date-to').val(fmDashboard.date_to);
+        highlightActivePreset();
+
+        renderAll(fmDashboard);
+        bindDateControls();
     });
 
-    function renderStats() {
-        animateCounter('#fm-stat-total', fmDashboard.total);
-        animateCounter('#fm-stat-today', fmDashboard.today);
-        animateCounter('#fm-stat-week', fmDashboard.week);
-        animateCounter('#fm-stat-month', fmDashboard.month);
-        $('#fm-form-count').text(fmDashboard.form_count + ' formulario' + (fmDashboard.form_count !== 1 ? 's' : ''));
+    function renderAll(data) {
+        renderStats(data);
+        renderChart(data);
+        renderTable(data);
+        renderFieldStats(data);
+    }
+
+    // --- Date range controls ---
+
+    function bindDateControls() {
+        $('#fm-dash-apply').on('click', function() {
+            loadData();
+        });
+
+        // Preset buttons
+        $('.fm-dash-preset').on('click', function() {
+            var days = parseInt($(this).data('days'), 10);
+            var to = fmDashboard.today;
+            var from = subtractDays(to, days);
+            $('#fm-date-from').val(from);
+            $('#fm-date-to').val(to);
+            $('.fm-dash-preset').removeClass('active');
+            $(this).addClass('active');
+            loadData();
+        });
+
+        // Clear active preset when user manually changes date
+        $('#fm-date-from, #fm-date-to').on('change', function() {
+            $('.fm-dash-preset').removeClass('active');
+        });
+    }
+
+    function loadData() {
+        var from = $('#fm-date-from').val();
+        var to = $('#fm-date-to').val();
+        if (!from || !to) return;
+
+        $('#fm-dash-loading').show();
+        $('#fm-dash-apply').prop('disabled', true);
+
+        $.post(fmDashboard.ajax_url, {
+            action: 'formularios_dashboard_data',
+            nonce: fmDashboard.nonce,
+            date_from: from,
+            date_to: to,
+        }, function(response) {
+            $('#fm-dash-loading').hide();
+            $('#fm-dash-apply').prop('disabled', false);
+            if (response.success && response.data) {
+                renderAll(response.data);
+            }
+        }).fail(function() {
+            $('#fm-dash-loading').hide();
+            $('#fm-dash-apply').prop('disabled', false);
+        });
+    }
+
+    function subtractDays(dateStr, days) {
+        var d = new Date(dateStr + 'T00:00:00');
+        d.setDate(d.getDate() - days);
+        return d.toISOString().split('T')[0];
+    }
+
+    function highlightActivePreset() {
+        var from = $('#fm-date-from').val();
+        var to = $('#fm-date-to').val();
+        $('.fm-dash-preset').each(function() {
+            var days = parseInt($(this).data('days'), 10);
+            var expected = subtractDays(to, days);
+            if (from === expected && to === fmDashboard.today) {
+                $(this).addClass('active');
+            }
+        });
+    }
+
+    // --- Stats cards ---
+
+    function renderStats(data) {
+        animateCounter('#fm-stat-total', data.total);
+        animateCounter('#fm-stat-today', data.total_today);
+        animateCounter('#fm-stat-week', data.total_week);
+        animateCounter('#fm-stat-range', data.range_total);
+        $('#fm-form-count').text(data.form_count + ' formulario' + (data.form_count !== 1 ? 's' : ''));
+
+        // Update period label
+        var fromParts = (data.date_from || '').split('-');
+        var toParts = (data.date_to || '').split('-');
+        if (fromParts.length === 3 && toParts.length === 3) {
+            $('#fm-chart-period-label').text(
+                fromParts[2] + '/' + fromParts[1] + '/' + fromParts[0] +
+                ' — ' +
+                toParts[2] + '/' + toParts[1] + '/' + toParts[0]
+            );
+        }
     }
 
     function animateCounter(selector, target) {
         target = parseInt(target, 10) || 0;
         var $el = $(selector);
-        if (target === 0) {
-            $el.text('0');
-            return;
-        }
+        if (target === 0) { $el.text('0'); return; }
 
         var duration = 600;
-        var start = 0;
         var startTime = null;
-
         function step(timestamp) {
             if (!startTime) startTime = timestamp;
             var progress = Math.min((timestamp - startTime) / duration, 1);
-            var eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
-            var current = Math.round(start + (target - start) * eased);
-            $el.text(current.toLocaleString());
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            }
+            var eased = 1 - Math.pow(1 - progress, 3);
+            $el.text(Math.round(target * eased).toLocaleString());
+            if (progress < 1) requestAnimationFrame(step);
         }
-
         requestAnimationFrame(step);
     }
 
-    function renderChart() {
+    // --- Chart ---
+
+    function renderChart(data) {
         var ctx = document.getElementById('fm-timeline-chart');
         if (!ctx) return;
 
-        var labels = fmDashboard.timeline_labels.map(function(d) {
-            var parts = d.split('-');
-            return parts[2] + '/' + parts[1];
+        if (chartInstance) {
+            chartInstance.destroy();
+            chartInstance = null;
+        }
+
+        var labels = (data.timeline_labels || []).map(function(d) {
+            var p = d.split('-');
+            return p[2] + '/' + p[1];
         });
 
         var datasets = [];
+        var colors = [
+            { bg: 'rgba(79, 70, 229, 0.1)',  border: '#4F46E5' },
+            { bg: 'rgba(16, 185, 129, 0.1)', border: '#10B981' },
+            { bg: 'rgba(245, 158, 11, 0.1)', border: '#F59E0B' },
+            { bg: 'rgba(239, 68, 68, 0.1)',  border: '#EF4444' },
+            { bg: 'rgba(139, 92, 246, 0.1)', border: '#8B5CF6' },
+            { bg: 'rgba(236, 72, 153, 0.1)', border: '#EC4899' },
+            { bg: 'rgba(6, 182, 212, 0.1)',  border: '#06B6D4' },
+            { bg: 'rgba(132, 204, 22, 0.1)', border: '#84CC16' },
+        ];
 
-        // If there are multiple forms, show per-form lines
-        if (fmDashboard.form_timelines && fmDashboard.form_timelines.length > 1) {
-            var colors = [
-                { bg: 'rgba(79, 70, 229, 0.1)',  border: '#4F46E5' },
-                { bg: 'rgba(16, 185, 129, 0.1)', border: '#10B981' },
-                { bg: 'rgba(245, 158, 11, 0.1)', border: '#F59E0B' },
-                { bg: 'rgba(239, 68, 68, 0.1)',  border: '#EF4444' },
-                { bg: 'rgba(139, 92, 246, 0.1)', border: '#8B5CF6' },
-                { bg: 'rgba(236, 72, 153, 0.1)', border: '#EC4899' },
-                { bg: 'rgba(6, 182, 212, 0.1)',  border: '#06B6D4' },
-                { bg: 'rgba(132, 204, 22, 0.1)', border: '#84CC16' },
-            ];
-
-            fmDashboard.form_timelines.forEach(function(ft, i) {
+        if (data.form_timelines && data.form_timelines.length > 1) {
+            data.form_timelines.forEach(function(ft, i) {
                 var c = colors[i % colors.length];
                 datasets.push({
                     label: ft.title,
                     data: ft.data,
                     borderColor: c.border,
                     backgroundColor: c.bg,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 2,
-                    pointHoverRadius: 5,
-                    borderWidth: 2,
+                    fill: true, tension: 0.4,
+                    pointRadius: 2, pointHoverRadius: 5, borderWidth: 2,
                 });
             });
         } else {
-            // Single total line
             datasets.push({
                 label: 'Respuestas',
-                data: fmDashboard.timeline_data,
+                data: data.timeline_data,
                 borderColor: '#4F46E5',
                 backgroundColor: 'rgba(79, 70, 229, 0.08)',
-                fill: true,
-                tension: 0.4,
-                pointRadius: 2,
-                pointHoverRadius: 6,
-                pointBackgroundColor: '#4F46E5',
-                borderWidth: 2.5,
+                fill: true, tension: 0.4,
+                pointRadius: 2, pointHoverRadius: 6,
+                pointBackgroundColor: '#4F46E5', borderWidth: 2.5,
             });
         }
 
-        new Chart(ctx, {
+        chartInstance = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: datasets,
-            },
+            data: { labels: labels, datasets: datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: {
                         display: datasets.length > 1,
                         position: 'top',
-                        labels: {
-                            usePointStyle: true,
-                            pointStyle: 'circle',
-                            padding: 20,
-                            font: { size: 12, weight: '500' },
-                        },
+                        labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, font: { size: 12, weight: '500' } },
                     },
                     tooltip: {
                         backgroundColor: '#1F2937',
                         titleFont: { size: 13, weight: '600' },
                         bodyFont: { size: 12 },
-                        padding: 12,
-                        cornerRadius: 8,
+                        padding: 12, cornerRadius: 8,
                         displayColors: datasets.length > 1,
                     },
                 },
                 scales: {
                     x: {
                         grid: { display: false },
-                        ticks: {
-                            font: { size: 11 },
-                            color: '#9CA3AF',
-                            maxTicksLimit: 15,
-                        },
+                        ticks: { font: { size: 11 }, color: '#9CA3AF', maxTicksLimit: 15 },
                         border: { display: false },
                     },
                     y: {
                         beginAtZero: true,
-                        grid: {
-                            color: '#F3F4F6',
-                            drawBorder: false,
-                        },
-                        ticks: {
-                            font: { size: 11 },
-                            color: '#9CA3AF',
-                            precision: 0,
-                        },
+                        grid: { color: '#F3F4F6', drawBorder: false },
+                        ticks: { font: { size: 11 }, color: '#9CA3AF', precision: 0 },
                         border: { display: false },
                     },
                 },
@@ -158,25 +218,29 @@
         });
     }
 
-    function renderTable() {
-        var forms = fmDashboard.forms;
+    // --- Table ---
+
+    function renderTable(data) {
+        var forms = data.forms;
         if (!forms || forms.length === 0) {
-            $('#fm-dash-table-body').html(
-                '<tr><td colspan="7" class="fm-dash-empty">No hay formularios creados.</td></tr>'
-            );
+            $('#fm-dash-table-body').html('<tr><td colspan="7" class="fm-dash-empty">No hay formularios creados.</td></tr>');
             return;
         }
 
-        var total = parseInt(fmDashboard.total, 10) || 0;
+        var rangeTotal = parseInt(data.range_total, 10) || 0;
+        var dateFrom = data.date_from || '';
+        var dateTo = data.date_to || '';
+        var rangeDays = 1;
+        if (dateFrom && dateTo) {
+            rangeDays = Math.max(1, Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000));
+        }
+
         var html = '';
-
         forms.forEach(function(f) {
-            var pct = total > 0 ? ((f.total / total) * 100).toFixed(1) : 0;
-            var avg = f.this_week > 0 ? (f.this_week / 7).toFixed(1) : '0';
-
+            var pct = rangeTotal > 0 ? ((f.total / rangeTotal) * 100).toFixed(1) : 0;
+            var avg = f.total > 0 ? (f.total / rangeDays).toFixed(1) : '0';
             var statusLabel = { publish: 'Activo', draft: 'Borrador', private: 'Privado' };
             var statusClass = 'fm-dash-status-' + f.status;
-
             var lastDate = f.last_submission
                 ? formatDate(f.last_submission)
                 : '<span class="fm-dash-no-data">Sin respuestas</span>';
@@ -187,7 +251,7 @@
             html += '<td class="fm-dtcol-stat">' + f.this_week + '</td>';
             html += '<td class="fm-dtcol-stat">' + avg + '</td>';
             html += '<td>';
-            html += '<div class="fm-dash-bar-track"><div class="fm-dash-bar-fill" style="width: ' + pct + '%"></div></div>';
+            html += '<div class="fm-dash-bar-track"><div class="fm-dash-bar-fill" style="width:' + pct + '%"></div></div>';
             html += '<span class="fm-dash-bar-pct">' + pct + '%</span>';
             html += '</td>';
             html += '<td class="fm-dash-last-date">' + lastDate + '</td>';
@@ -196,34 +260,94 @@
         });
 
         $('#fm-dash-table-body').html(html);
-
-        // Animate bars after a short delay
-        setTimeout(function() {
-            $('.fm-dash-bar-fill').each(function() {
-                var w = $(this).css('width');
-                $(this).css('width', '0%');
-                var self = this;
-                setTimeout(function() {
-                    $(self).css('width', w);
-                }, 50);
-            });
-        }, 100);
     }
+
+    // --- Field Stats ---
+
+    function renderFieldStats(data) {
+        var stats = data.field_stats;
+        var $section = $('#fm-field-stats-section');
+        var $body = $('#fm-field-stats-body');
+
+        if (!stats || stats.length === 0) {
+            $section.hide();
+            return;
+        }
+
+        $section.show();
+        var html = '';
+
+        stats.forEach(function(formGroup) {
+            html += '<div class="fm-fstat-form">';
+            html += '<h3 class="fm-fstat-form-title">' + escHtml(formGroup.form_title) + '</h3>';
+            html += '<div class="fm-fstat-fields">';
+
+            formGroup.fields.forEach(function(field) {
+                html += '<div class="fm-fstat-card">';
+                html += '<div class="fm-fstat-card-header">';
+                html += '<span class="fm-fstat-label">' + escHtml(field.label) + '</span>';
+                html += '<span class="fm-fstat-type">' + escHtml(field.input_type) + '</span>';
+                html += '</div>';
+
+                html += '<div class="fm-fstat-summary">';
+                html += '<div class="fm-fstat-metric"><span class="fm-fstat-metric-val">' + field.total + '</span><span class="fm-fstat-metric-label">Respuestas</span></div>';
+                html += '<div class="fm-fstat-metric"><span class="fm-fstat-metric-val">' + field.unique + '</span><span class="fm-fstat-metric-label">Valores unicos</span></div>';
+                if (field.numeric_avg !== null && field.numeric_avg !== undefined) {
+                    html += '<div class="fm-fstat-metric"><span class="fm-fstat-metric-val">' + field.numeric_avg + '</span><span class="fm-fstat-metric-label">Promedio</span></div>';
+                }
+                html += '</div>';
+
+                // Value distribution
+                var topValues = field.top_values;
+                if (topValues && typeof topValues === 'object') {
+                    var keys = Object.keys(topValues);
+                    if (keys.length > 0) {
+                        var maxCount = topValues[keys[0]] || 1;
+                        html += '<div class="fm-fstat-dist">';
+                        html += '<span class="fm-fstat-dist-title">Distribucion de valores</span>';
+                        keys.forEach(function(val) {
+                            var count = topValues[val];
+                            var pct = field.total > 0 ? ((count / field.total) * 100).toFixed(1) : 0;
+                            var barW = maxCount > 0 ? ((count / maxCount) * 100) : 0;
+                            html += '<div class="fm-fstat-dist-row">';
+                            html += '<span class="fm-fstat-dist-label" title="' + escAttr(val) + '">' + escHtml(val.length > 40 ? val.substring(0, 37) + '...' : val) + '</span>';
+                            html += '<div class="fm-fstat-dist-bar-track"><div class="fm-fstat-dist-bar" style="width:' + barW + '%"></div></div>';
+                            html += '<span class="fm-fstat-dist-count">' + count + ' <small>(' + pct + '%)</small></span>';
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                    }
+                }
+
+                html += '</div>';
+            });
+
+            html += '</div>';
+            html += '</div>';
+        });
+
+        $body.html(html);
+    }
+
+    // --- Helpers ---
 
     function formatDate(dateStr) {
         if (!dateStr) return '';
         var d = new Date(dateStr);
         var day = String(d.getDate()).padStart(2, '0');
         var month = String(d.getMonth() + 1).padStart(2, '0');
-        var year = d.getFullYear();
-        var hours = String(d.getHours()).padStart(2, '0');
-        var mins = String(d.getMinutes()).padStart(2, '0');
-        return day + '/' + month + '/' + year + ' ' + hours + ':' + mins;
+        return day + '/' + month + '/' + d.getFullYear() + ' ' +
+            String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     }
 
     function escHtml(str) {
         if (!str) return '';
         return $('<span>').text(str).html();
+    }
+
+    function escAttr(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
 })(jQuery);

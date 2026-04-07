@@ -6,6 +6,7 @@ class Formularios_Dashboard {
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+        add_action( 'wp_ajax_formularios_dashboard_data', array( $this, 'ajax_dashboard_data' ) );
     }
 
     public function add_menu_page() {
@@ -45,17 +46,46 @@ class Formularios_Dashboard {
             true
         );
 
-        // Gather data for the dashboard
-        $stats = $this->get_dashboard_data();
+        $today = current_time( 'Y-m-d' );
+        $default_from = gmdate( 'Y-m-d', strtotime( '-30 days', strtotime( $today ) ) );
 
-        wp_localize_script( 'formularios-dashboard', 'fmDashboard', $stats );
+        $stats = $this->get_dashboard_data( $default_from, $today );
+
+        wp_localize_script( 'formularios-dashboard', 'fmDashboard', array_merge( $stats, array(
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce'    => wp_create_nonce( 'formularios_dashboard' ),
+            'today'    => $today,
+        ) ) );
     }
 
-    private function get_dashboard_data() {
+    /**
+     * AJAX handler for reloading dashboard with a date range.
+     */
+    public function ajax_dashboard_data() {
+        check_ajax_referer( 'formularios_dashboard', 'nonce' );
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+
+        $date_from = sanitize_text_field( $_POST['date_from'] ?? '' );
+        $date_to   = sanitize_text_field( $_POST['date_to'] ?? '' );
+
+        if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date_from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date_to ) ) {
+            wp_send_json_error( 'Invalid dates' );
+        }
+
+        $stats = $this->get_dashboard_data( $date_from, $date_to );
+        wp_send_json_success( $stats );
+    }
+
+    /**
+     * Gather all dashboard data for a given date range.
+     */
+    private function get_dashboard_data( $date_from, $date_to ) {
         global $wpdb;
         $table = $wpdb->prefix . 'formularios_submissions';
 
-        // Get all forms
         $forms = get_posts( array(
             'post_type'      => 'formulario',
             'posts_per_page' => -1,
@@ -64,36 +94,34 @@ class Formularios_Dashboard {
             'order'          => 'ASC',
         ) );
 
-        // Total submissions
-        $total_submissions = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
-
-        // Submissions today
-        $today = current_time( 'Y-m-d' );
-        $submissions_today = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table} WHERE DATE(submitted_at) = %s",
-            $today
-        ) );
-
-        // Submissions this week (last 7 days)
-        $week_ago = gmdate( 'Y-m-d', strtotime( '-7 days', strtotime( $today ) ) );
-        $submissions_week = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table} WHERE DATE(submitted_at) >= %s",
-            $week_ago
-        ) );
-
-        // Submissions this month
+        $today      = current_time( 'Y-m-d' );
+        $week_ago   = gmdate( 'Y-m-d', strtotime( '-7 days', strtotime( $today ) ) );
         $month_start = gmdate( 'Y-m-01', strtotime( $today ) );
-        $submissions_month = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table} WHERE DATE(submitted_at) >= %s",
-            $month_start
+
+        // Summary counts (always absolute, not filtered by range)
+        $total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+        $total_today = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE DATE(submitted_at) = %s", $today
+        ) );
+        $total_week = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE DATE(submitted_at) >= %s", $week_ago
+        ) );
+        $total_month = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE DATE(submitted_at) >= %s", $month_start
         ) );
 
-        // Per-form counts
+        // Range-scoped count
+        $range_total = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE DATE(submitted_at) >= %s AND DATE(submitted_at) <= %s",
+            $date_from, $date_to
+        ) );
+
+        // Per-form stats (scoped to range)
         $form_stats = array();
         foreach ( $forms as $form ) {
             $count = (int) $wpdb->get_var( $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table} WHERE form_id = %d",
-                $form->ID
+                "SELECT COUNT(*) FROM {$table} WHERE form_id = %d AND DATE(submitted_at) >= %s AND DATE(submitted_at) <= %s",
+                $form->ID, $date_from, $date_to
             ) );
 
             $last_submission = $wpdb->get_var( $wpdb->prepare(
@@ -101,7 +129,6 @@ class Formularios_Dashboard {
                 $form->ID
             ) );
 
-            // Count this week for this form
             $form_week = (int) $wpdb->get_var( $wpdb->prepare(
                 "SELECT COUNT(*) FROM {$table} WHERE form_id = %d AND DATE(submitted_at) >= %s",
                 $form->ID, $week_ago
@@ -117,37 +144,35 @@ class Formularios_Dashboard {
             );
         }
 
-        // Timeline data: submissions per day for the last 30 days
-        $days_back = 30;
-        $start_date = gmdate( 'Y-m-d', strtotime( "-{$days_back} days", strtotime( $today ) ) );
+        // Timeline data scoped to range
+        $start_ts = strtotime( $date_from );
+        $end_ts   = strtotime( $date_to );
+        $days     = max( 0, (int) round( ( $end_ts - $start_ts ) / 86400 ) );
 
-        // Generate all dates in range
         $timeline_labels = array();
-        $timeline_data = array();
-        for ( $d = 0; $d <= $days_back; $d++ ) {
-            $date = gmdate( 'Y-m-d', strtotime( "+{$d} days", strtotime( $start_date ) ) );
+        $timeline_data   = array();
+        for ( $d = 0; $d <= $days; $d++ ) {
+            $date = gmdate( 'Y-m-d', strtotime( "+{$d} days", $start_ts ) );
             $timeline_labels[] = $date;
             $timeline_data[ $date ] = 0;
         }
 
-        // Fill with actual counts
         $daily_counts = $wpdb->get_results( $wpdb->prepare(
-            "SELECT DATE(submitted_at) as day, COUNT(*) as cnt FROM {$table} WHERE DATE(submitted_at) >= %s GROUP BY DATE(submitted_at)",
-            $start_date
+            "SELECT DATE(submitted_at) as day, COUNT(*) as cnt FROM {$table} WHERE DATE(submitted_at) >= %s AND DATE(submitted_at) <= %s GROUP BY DATE(submitted_at)",
+            $date_from, $date_to
         ) );
-
         foreach ( $daily_counts as $dc ) {
             if ( isset( $timeline_data[ $dc->day ] ) ) {
                 $timeline_data[ $dc->day ] = (int) $dc->cnt;
             }
         }
 
-        // Per-form timeline data
+        // Per-form timelines
         $form_timelines = array();
         foreach ( $forms as $form ) {
             $form_daily = $wpdb->get_results( $wpdb->prepare(
-                "SELECT DATE(submitted_at) as day, COUNT(*) as cnt FROM {$table} WHERE form_id = %d AND DATE(submitted_at) >= %s GROUP BY DATE(submitted_at)",
-                $form->ID, $start_date
+                "SELECT DATE(submitted_at) as day, COUNT(*) as cnt FROM {$table} WHERE form_id = %d AND DATE(submitted_at) >= %s AND DATE(submitted_at) <= %s GROUP BY DATE(submitted_at)",
+                $form->ID, $date_from, $date_to
             ) );
 
             $series = array();
@@ -167,23 +192,129 @@ class Formularios_Dashboard {
             );
         }
 
+        // Tracked field stats: for each form, find fields with track_stats=true,
+        // then compute value distributions from submissions in the date range.
+        $field_stats = array();
+        foreach ( $forms as $form ) {
+            $elements = get_post_meta( $form->ID, '_formularios_elements', true );
+            if ( ! is_array( $elements ) ) continue;
+
+            $tracked = array();
+            foreach ( $elements as $el ) {
+                if ( 'question' !== ( $el['type'] ?? '' ) ) continue;
+                if ( empty( $el['track_stats'] ) ) continue;
+                $tracked[] = array(
+                    'id'         => $el['id'],
+                    'label'      => $el['label'] ?: $el['id'],
+                    'input_type' => $el['input_type'] ?? 'text',
+                );
+            }
+
+            if ( empty( $tracked ) ) continue;
+
+            // Fetch submissions in range for this form
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT data FROM {$table} WHERE form_id = %d AND DATE(submitted_at) >= %s AND DATE(submitted_at) <= %s",
+                $form->ID, $date_from, $date_to
+            ) );
+
+            $field_distributions = array();
+            foreach ( $tracked as $tf ) {
+                $values = array();
+                foreach ( $rows as $row ) {
+                    $data = json_decode( $row->data, true );
+                    if ( ! is_array( $data ) ) continue;
+                    foreach ( $data as $field ) {
+                        if ( $field['id'] !== $tf['id'] ) continue;
+                        $v = $field['value'];
+                        if ( is_array( $v ) ) {
+                            foreach ( $v as $sub ) {
+                                $sub = trim( $sub );
+                                if ( '' !== $sub ) {
+                                    $values[] = $sub;
+                                }
+                            }
+                        } else {
+                            $v = trim( $v );
+                            if ( '' !== $v ) {
+                                $values[] = $v;
+                            }
+                        }
+                    }
+                }
+
+                // Build frequency distribution
+                $freq = array_count_values( $values );
+                arsort( $freq );
+
+                // For numeric fields compute average
+                $numeric_avg = null;
+                if ( 'number' === $tf['input_type'] && ! empty( $values ) ) {
+                    $nums = array_filter( $values, 'is_numeric' );
+                    if ( ! empty( $nums ) ) {
+                        $numeric_avg = round( array_sum( $nums ) / count( $nums ), 2 );
+                    }
+                }
+
+                $field_distributions[] = array(
+                    'id'          => $tf['id'],
+                    'label'       => $tf['label'],
+                    'input_type'  => $tf['input_type'],
+                    'total'       => count( $values ),
+                    'unique'      => count( $freq ),
+                    'top_values'  => array_slice( $freq, 0, 10, true ),
+                    'numeric_avg' => $numeric_avg,
+                );
+            }
+
+            if ( ! empty( $field_distributions ) ) {
+                $field_stats[] = array(
+                    'form_id'    => $form->ID,
+                    'form_title' => $form->post_title ?: 'Sin titulo #' . $form->ID,
+                    'fields'     => $field_distributions,
+                );
+            }
+        }
+
         return array(
-            'total'           => $total_submissions,
-            'today'           => $submissions_today,
-            'week'            => $submissions_week,
-            'month'           => $submissions_month,
+            'total'           => $total,
+            'total_today'     => $total_today,
+            'total_week'      => $total_week,
+            'total_month'     => $total_month,
+            'range_total'     => $range_total,
             'form_count'      => count( $forms ),
             'forms'           => $form_stats,
             'timeline_labels' => $timeline_labels,
             'timeline_data'   => array_values( $timeline_data ),
             'form_timelines'  => $form_timelines,
+            'field_stats'     => $field_stats,
+            'date_from'       => $date_from,
+            'date_to'         => $date_to,
         );
     }
 
     public function render_page() {
         ?>
         <div class="wrap fm-dashboard-wrap">
-            <h1 class="wp-heading-inline">Estadisticas</h1>
+            <div class="fm-dash-top-bar">
+                <h1 class="wp-heading-inline">Estadisticas</h1>
+                <div class="fm-dash-date-range">
+                    <label for="fm-date-from">Desde</label>
+                    <input type="date" id="fm-date-from" class="fm-dash-date-input" />
+                    <label for="fm-date-to">Hasta</label>
+                    <input type="date" id="fm-date-to" class="fm-dash-date-input" />
+                    <div class="fm-dash-presets">
+                        <button type="button" class="fm-dash-preset" data-days="7">7d</button>
+                        <button type="button" class="fm-dash-preset" data-days="30">30d</button>
+                        <button type="button" class="fm-dash-preset" data-days="90">90d</button>
+                        <button type="button" class="fm-dash-preset" data-days="365">1a</button>
+                    </div>
+                    <button type="button" id="fm-dash-apply" class="button button-primary fm-dash-apply-btn">Aplicar</button>
+                    <span id="fm-dash-loading" class="fm-dash-loading" style="display:none">
+                        <span class="spinner is-active" style="float:none;margin:0"></span>
+                    </span>
+                </div>
+            </div>
 
             <!-- Summary Cards -->
             <div class="fm-dash-cards">
@@ -215,12 +346,12 @@ class Formularios_Dashboard {
                     </div>
                 </div>
                 <div class="fm-dash-card">
-                    <div class="fm-dash-card-icon fm-dash-icon-month">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <div class="fm-dash-card-icon fm-dash-icon-range">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     </div>
                     <div class="fm-dash-card-body">
-                        <span class="fm-dash-card-value" id="fm-stat-month">0</span>
-                        <span class="fm-dash-card-label">Este mes</span>
+                        <span class="fm-dash-card-value" id="fm-stat-range">0</span>
+                        <span class="fm-dash-card-label">En el rango</span>
                     </div>
                 </div>
             </div>
@@ -229,7 +360,7 @@ class Formularios_Dashboard {
             <div class="fm-dash-chart-wrap">
                 <div class="fm-dash-chart-header">
                     <h2>Tendencia de respuestas</h2>
-                    <span class="fm-dash-chart-period">Ultimos 30 dias</span>
+                    <span class="fm-dash-chart-period" id="fm-chart-period-label">Ultimos 30 dias</span>
                 </div>
                 <div class="fm-dash-chart-container">
                     <canvas id="fm-timeline-chart"></canvas>
@@ -246,9 +377,9 @@ class Formularios_Dashboard {
                     <thead>
                         <tr>
                             <th class="fm-dtcol-name">Formulario</th>
-                            <th class="fm-dtcol-stat">Total</th>
+                            <th class="fm-dtcol-stat">En rango</th>
                             <th class="fm-dtcol-stat">Esta semana</th>
-                            <th class="fm-dtcol-stat">Promedio diario</th>
+                            <th class="fm-dtcol-stat">Prom. diario</th>
                             <th class="fm-dtcol-bar">Distribucion</th>
                             <th class="fm-dtcol-date">Ultima respuesta</th>
                             <th class="fm-dtcol-status">Estado</th>
@@ -256,6 +387,15 @@ class Formularios_Dashboard {
                     </thead>
                     <tbody id="fm-dash-table-body"></tbody>
                 </table>
+            </div>
+
+            <!-- Field Stats Section -->
+            <div id="fm-field-stats-section" class="fm-dash-field-stats-section" style="display:none">
+                <div class="fm-dash-field-stats-header">
+                    <h2>Estadisticas por campo</h2>
+                    <span class="fm-dash-field-stats-hint">Campos marcados con "Estadisticas" en el constructor</span>
+                </div>
+                <div id="fm-field-stats-body" class="fm-dash-field-stats-body"></div>
             </div>
         </div>
         <?php

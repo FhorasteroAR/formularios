@@ -525,11 +525,6 @@
     padding-top: 12px;
 }
 
-.fm-layout-options {
-    display: flex;
-    gap: 8px;
-}
-
 .fm-layout-option {
     display: flex;
     align-items: center;
@@ -597,6 +592,135 @@
 .fm-layout-icon-third::before {
     left: 66.66%;
     transform: translateX(-50%);
+}
+
+.fm-layout-icon-quarter::after,
+.fm-layout-icon-quarter::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1.5px;
+    background: currentColor;
+}
+
+.fm-layout-icon-quarter::after {
+    left: 25%;
+}
+
+.fm-layout-icon-quarter::before {
+    left: 75%;
+}
+
+/* Extra pseudo needed — use box-shadow for the middle line */
+.fm-layout-icon-quarter {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 1.5px 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.fm-layout-icon-two_thirds::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 66.66%;
+    width: 1.5px;
+    background: currentColor;
+    transform: translateX(-50%);
+}
+
+.fm-layout-icon-custom {
+    border-style: dashed;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.fm-layout-icon-custom::after {
+    content: '…';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+/* Layout top row */
+.fm-layout-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+/* Track stats toggle */
+.fm-track-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fm-gray-500);
+    cursor: pointer;
+    padding: 3px 10px;
+    border: 1px solid var(--fm-gray-200);
+    border-radius: 6px;
+    transition: var(--fm-transition);
+    margin-bottom: 0 !important;
+}
+
+.fm-track-toggle:hover {
+    border-color: var(--fm-green);
+    color: var(--fm-green);
+    background: #D1FAE5;
+}
+
+.fm-track-toggle:has(input:checked) {
+    border-color: var(--fm-green);
+    color: var(--fm-green);
+    background: #D1FAE5;
+}
+
+.fm-track-toggle input[type="checkbox"] {
+    accent-color: var(--fm-green);
+    width: 14px;
+    height: 14px;
+    margin: 0;
+}
+
+.fm-track-toggle svg {
+    flex-shrink: 0;
+}
+
+/* Custom width row */
+.fm-custom-width-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.fm-custom-width-row .fm-input {
+    max-width: 200px;
+}
+
+.fm-custom-width-hint {
+    font-size: 12px;
+    color: var(--fm-gray-400);
+    white-space: nowrap;
+}
+
+/* Layout options wrap */
+.fm-layout-options {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 /* File Upload Settings */

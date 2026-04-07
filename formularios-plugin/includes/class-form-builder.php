@@ -314,8 +314,10 @@ class Formularios_Builder {
                     $item['input_type']     = sanitize_text_field( $el['input_type'] ?? 'text' );
                     $item['required']       = ! empty( $el['required'] );
                     $item['placeholder']    = sanitize_text_field( $el['placeholder'] ?? '' );
-                    $allowed_layouts        = array( 'full', 'half', 'third' );
+                    $allowed_layouts        = array( 'full', 'half', 'third', 'quarter', 'two_thirds', 'custom' );
                     $item['layout']         = in_array( $el['layout'] ?? '', $allowed_layouts, true ) ? $el['layout'] : 'full';
+                    $item['custom_width']   = preg_match( '/^\d+(\.\d+)?\s*(px|%|fr|em|rem|vw)$/', trim( $el['custom_width'] ?? '' ) ) ? trim( $el['custom_width'] ) : '';
+                    $item['track_stats']    = ! empty( $el['track_stats'] );
                     $item['accepted_types'] = sanitize_text_field( $el['accepted_types'] ?? '' );
                     $item['max_size']       = absint( $el['max_size'] ?? 5 );
                     $item['options']        = array();

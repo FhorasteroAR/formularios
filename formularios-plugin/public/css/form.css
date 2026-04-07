@@ -122,14 +122,32 @@
     min-width: 0;
 }
 
+.fm-field-quarter {
+    flex: 0 0 calc(25% - 12px);
+    min-width: 0;
+}
+
+.fm-field-two_thirds {
+    flex: 0 0 calc(66.666% - 8px);
+    min-width: 0;
+}
+
+.fm-field-custom {
+    min-width: 0;
+}
+
 @media (max-width: 600px) {
     .fm-fields-row {
         flex-direction: column;
         gap: 0;
     }
     .fm-field-half,
-    .fm-field-third {
-        flex: 0 0 100%;
+    .fm-field-third,
+    .fm-field-quarter,
+    .fm-field-two_thirds,
+    .fm-field-custom {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
     }
 }
 

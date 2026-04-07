@@ -200,7 +200,8 @@ class Formularios_Renderer {
                     }
 
                     // Determine if this element uses inline layout
-                    $is_inline = ( 'question' === $el['type'] && ! empty( $el['layout'] ) && 'full' !== $el['layout'] );
+                    $el_layout = $el['layout'] ?? 'full';
+                    $is_inline = ( 'question' === $el['type'] && 'full' !== $el_layout );
 
                     if ( $is_inline && ! $in_row ) {
                         echo '<div class="fm-fields-row">';
@@ -305,9 +306,14 @@ class Formularios_Renderer {
         $req_mark = $required ? ' <span class="fm-required">*</span>' : '';
         $name = 'fm_field_' . sanitize_key( $el['id'] );
         $layout = $el['layout'] ?? 'full';
-        $layout_class = 'full' !== $layout ? ' fm-field-' . esc_attr( $layout ) : '';
+        $layout_class = 'full' !== $layout && 'custom' !== $layout ? ' fm-field-' . esc_attr( $layout ) : '';
+        $inline_style = '';
+        if ( 'custom' === $layout && ! empty( $el['custom_width'] ) ) {
+            $layout_class = ' fm-field-custom';
+            $inline_style = ' style="flex:0 0 ' . esc_attr( $el['custom_width'] ) . ';max-width:' . esc_attr( $el['custom_width'] ) . '"';
+        }
         ?>
-        <div class="fm-field<?php echo $layout_class; ?>" data-type="<?php echo esc_attr( $el['input_type'] ); ?>">
+        <div class="fm-field<?php echo $layout_class; ?>"<?php echo $inline_style; ?> data-type="<?php echo esc_attr( $el['input_type'] ); ?>">
             <?php if ( ! empty( $el['label'] ) ) : ?>
                 <label class="fm-label"><?php echo esc_html( $el['label'] ); ?><?php echo $req_mark; ?></label>
             <?php endif; ?>

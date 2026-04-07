@@ -17,9 +17,12 @@
     };
 
     var LAYOUT_OPTIONS = {
-        full:  'Ancho completo',
-        half:  'Mitad (1/2)',
-        third: 'Tercio (1/3)'
+        full:    'Completo',
+        half:    '1/2',
+        third:   '1/3',
+        quarter: '1/4',
+        two_thirds: '2/3',
+        custom:  'Personalizado'
     };
 
     var NEEDS_OPTIONS = ['select', 'radio', 'checkbox'];
@@ -93,6 +96,7 @@
             var $el = $(this).closest('.fm-element');
             var id = $el.data('id');
             var field = $(this).data('field');
+            if ($(this).is(':radio') && !$(this).is(':checked')) return;
             var value = $(this).is(':checkbox') ? $(this).is(':checked') : $(this).val();
             updateElementData(id, field, value);
         });
@@ -148,11 +152,17 @@
             }
         });
 
-        // Layout radio toggle active class
+        // Layout radio toggle active class + custom width visibility
         $('#formularios-elements-list').on('change', '.fm-layout-radio', function() {
-            var $row = $(this).closest('.fm-layout-options');
-            $row.find('.fm-layout-option').removeClass('active');
+            var $layoutRow = $(this).closest('.fm-layout-row');
+            $layoutRow.find('.fm-layout-option').removeClass('active');
             $(this).closest('.fm-layout-option').addClass('active');
+            var val = $(this).val();
+            if (val === 'custom') {
+                $layoutRow.find('.fm-custom-width-row').slideDown(150);
+            } else {
+                $layoutRow.find('.fm-custom-width-row').slideUp(150);
+            }
         });
 
         // Before form submit, sync data
@@ -204,6 +214,8 @@
                     required: false,
                     placeholder: '',
                     layout: 'full',
+                    custom_width: '',
+                    track_stats: false,
                     options: [],
                     accepted_types: '',
                     max_size: 5
@@ -337,10 +349,16 @@
                 html += '<label class="fm-required-toggle"><input type="checkbox" class="fm-data-input" data-field="required"' + (el.required ? ' checked' : '') + ' /> ' + formularios.i18n.required + '</label>';
                 html += '</div>';
 
-                // Layout selector
+                // Layout & width selector
                 var elLayout = el.layout || 'full';
+                var customWidth = el.custom_width || '';
                 html += '<div class="fm-layout-row">';
-                html += '<label class="fm-input-label">Disposicion</label>';
+                html += '<div class="fm-layout-top">';
+                html += '<label class="fm-input-label">Ancho del campo</label>';
+                html += '<label class="fm-track-toggle"><input type="checkbox" class="fm-data-input" data-field="track_stats"' + (el.track_stats ? ' checked' : '') + ' />';
+                html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>';
+                html += ' Estadisticas</label>';
+                html += '</div>';
                 html += '<div class="fm-layout-options">';
                 for (var lk in LAYOUT_OPTIONS) {
                     html += '<label class="fm-layout-option' + (elLayout === lk ? ' active' : '') + '">';
@@ -349,6 +367,10 @@
                     html += '<span>' + LAYOUT_OPTIONS[lk] + '</span>';
                     html += '</label>';
                 }
+                html += '</div>';
+                html += '<div class="fm-custom-width-row" style="' + (elLayout === 'custom' ? '' : 'display:none') + '">';
+                html += '<input type="text" class="fm-input fm-data-input fm-custom-width-input" data-field="custom_width" value="' + escAttr(customWidth) + '" placeholder="ej: 60%, 200px" />';
+                html += '<span class="fm-custom-width-hint">Usa %, px o fr</span>';
                 html += '</div>';
                 html += '</div>';
 
@@ -567,7 +589,11 @@
             $(this).find('.fm-data-input').each(function() {
                 var field = $(this).data('field');
                 if (!field) return;
-                if ($(this).is(':checkbox')) {
+                if ($(this).is(':radio')) {
+                    if ($(this).is(':checked')) {
+                        el[field] = $(this).val();
+                    }
+                } else if ($(this).is(':checkbox')) {
                     el[field] = $(this).is(':checked');
                 } else {
                     el[field] = $(this).val();

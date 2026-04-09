@@ -343,6 +343,12 @@
     margin-bottom: 16px;
 }
 
+.fm-dash-field-stats-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .fm-dash-field-stats-header h2 {
     font-size: 16px;
     font-weight: 700;
@@ -353,6 +359,33 @@
 .fm-dash-field-stats-hint {
     font-size: 12px;
     color: #9CA3AF;
+}
+
+.fm-dash-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    border: 1px solid #D1D5DB !important;
+    background: #FFFFFF !important;
+    color: #374151 !important;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    height: auto !important;
+    line-height: 1.4 !important;
+}
+
+.fm-dash-export-btn:hover {
+    border-color: #4F46E5 !important;
+    color: #4F46E5 !important;
+    background: #EEF2FF !important;
+}
+
+.fm-dash-export-btn svg {
+    flex-shrink: 0;
 }
 
 .fm-fstat-form {

@@ -392,8 +392,14 @@ class Formularios_Dashboard {
             <!-- Field Stats Section -->
             <div id="fm-field-stats-section" class="fm-dash-field-stats-section" style="display:none">
                 <div class="fm-dash-field-stats-header">
-                    <h2>Estadisticas por campo</h2>
-                    <span class="fm-dash-field-stats-hint">Campos marcados con "Estadisticas" en el constructor</span>
+                    <div class="fm-dash-field-stats-header-left">
+                        <h2>Estadisticas por campo</h2>
+                        <span class="fm-dash-field-stats-hint">Campos marcados con "Estadisticas" en el constructor</span>
+                    </div>
+                    <button type="button" id="fm-export-field-stats" class="button fm-dash-export-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Exportar CSV
+                    </button>
                 </div>
                 <div id="fm-field-stats-body" class="fm-dash-field-stats-body"></div>
             </div>

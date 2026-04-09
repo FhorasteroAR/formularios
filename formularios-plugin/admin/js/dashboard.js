@@ -269,6 +269,9 @@
         var $section = $('#fm-field-stats-section');
         var $body = $('#fm-field-stats-body');
 
+        lastFieldStats = stats;
+        lastDateRange = { from: data.date_from || '', to: data.date_to || '' };
+
         if (!stats || stats.length === 0) {
             $section.hide();
             return;
@@ -328,6 +331,71 @@
 
         $body.html(html);
     }
+
+    // --- Export Field Stats CSV ---
+
+    var lastFieldStats = null;
+    var lastDateRange = {};
+
+    $(document).on('click', '#fm-export-field-stats', function() {
+        if (!lastFieldStats || lastFieldStats.length === 0) return;
+
+        var rows = [];
+        rows.push(['Formulario', 'Campo', 'Tipo', 'Respuestas', 'Valores unicos', 'Promedio', 'Valor', 'Cantidad', 'Porcentaje']);
+
+        lastFieldStats.forEach(function(formGroup) {
+            formGroup.fields.forEach(function(field) {
+                var topValues = field.top_values;
+                var keys = topValues && typeof topValues === 'object' ? Object.keys(topValues) : [];
+
+                if (keys.length === 0) {
+                    rows.push([
+                        formGroup.form_title, field.label, field.input_type,
+                        field.total, field.unique,
+                        field.numeric_avg !== null && field.numeric_avg !== undefined ? field.numeric_avg : '',
+                        '', '', ''
+                    ]);
+                } else {
+                    keys.forEach(function(val, i) {
+                        var count = topValues[val];
+                        var pct = field.total > 0 ? ((count / field.total) * 100).toFixed(1) + '%' : '0%';
+                        rows.push([
+                            i === 0 ? formGroup.form_title : '',
+                            i === 0 ? field.label : '',
+                            i === 0 ? field.input_type : '',
+                            i === 0 ? field.total : '',
+                            i === 0 ? field.unique : '',
+                            i === 0 ? (field.numeric_avg !== null && field.numeric_avg !== undefined ? field.numeric_avg : '') : '',
+                            val, count, pct
+                        ]);
+                    });
+                }
+            });
+        });
+
+        var csv = rows.map(function(r) {
+            return r.map(function(cell) {
+                var s = String(cell === null || cell === undefined ? '' : cell);
+                if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+                    return '"' + s.replace(/"/g, '""') + '"';
+                }
+                return s;
+            }).join(',');
+        }).join('\r\n');
+
+        var BOM = '\uFEFF';
+        var blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        var from = lastDateRange.from || '';
+        var to = lastDateRange.to || '';
+        a.download = 'estadisticas-campos' + (from ? '_' + from : '') + (to ? '_' + to : '') + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
 
     // --- Helpers ---
 

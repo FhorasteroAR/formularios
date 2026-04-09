@@ -244,6 +244,18 @@
                    .find('.fm-error-msg').hide().text('');
         });
 
+        // Toggle filled state on controls
+        $form.on('input change', '.fm-control', function() {
+            var val = $(this).val();
+            $(this).toggleClass('fm-filled', val !== null && val !== '');
+        });
+
+        // Initialize filled state on page load
+        $form.find('.fm-control').each(function() {
+            var val = $(this).val();
+            $(this).toggleClass('fm-filled', val !== null && val !== '');
+        });
+
         // Clear email match error on confirm field input
         $form.on('input', '.fm-email-confirm', function() {
             $(this).closest('.fm-field').find('.fm-email-match-error').hide().text('');
@@ -321,11 +333,15 @@
         function renderFileList($wrap) {
             var input = $wrap.find('.fm-file-input')[0];
             var $list = $wrap.find('.fm-file-list');
+            var $dropzone = $wrap.find('.fm-file-dropzone');
             $list.empty();
 
             if (!input.files || input.files.length === 0) {
+                $dropzone.removeClass('fm-filled');
                 return;
             }
+
+            $dropzone.addClass('fm-filled');
 
             for (var i = 0; i < input.files.length; i++) {
                 var file = input.files[i];

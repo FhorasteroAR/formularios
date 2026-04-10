@@ -7,6 +7,7 @@ class Formularios_Submissions_Page {
         add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
         add_action( 'wp_ajax_formularios_export_submissions', array( $this, 'ajax_export_csv' ) );
+        add_action( 'wp_ajax_formularios_export_submissions_pdf', array( $this, 'ajax_export_pdf' ) );
     }
 
     public function add_menu_page() {
@@ -132,6 +133,102 @@ class Formularios_Submissions_Page {
         exit;
     }
 
+    /**
+     * AJAX handler to export submissions as a printable PDF-ready HTML page.
+     */
+    public function ajax_export_pdf() {
+        check_ajax_referer( 'formularios_export_submissions', 'nonce' );
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_die( 'Unauthorized' );
+        }
+
+        $form_id = absint( $_GET['form_id'] ?? 0 );
+        if ( ! $form_id ) {
+            wp_die( 'Invalid form' );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'formularios_submissions';
+
+        $form = get_post( $form_id );
+        $form_title = $form ? ( $form->post_title ?: 'Formulario #' . $form_id ) : 'Formulario #' . $form_id;
+
+        $elements = get_post_meta( $form_id, '_formularios_elements', true );
+        $headers = array();
+        if ( is_array( $elements ) ) {
+            foreach ( $elements as $el ) {
+                if ( 'question' === $el['type'] ) {
+                    $headers[] = array(
+                        'id'    => $el['id'],
+                        'label' => $el['label'] ?: $el['id'],
+                        'type'  => $el['input_type'] ?? 'text',
+                    );
+                }
+            }
+        }
+
+        $submissions = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE form_id = %d ORDER BY submitted_at DESC",
+            $form_id
+        ) );
+
+        header( 'Content-Type: text/html; charset=utf-8' );
+
+        echo '<!DOCTYPE html><html><head><meta charset="utf-8">';
+        echo '<title>Respuestas — ' . esc_html( $form_title ) . '</title>';
+        echo '<style>';
+        echo 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1F2937;max-width:900px;margin:0 auto;padding:40px 32px;font-size:13px;line-height:1.5}';
+        echo 'h1{font-size:20px;font-weight:700;margin:0 0 4px}';
+        echo '.subtitle{font-size:12px;color:#6B7280;margin-bottom:24px}';
+        echo '.entry{border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
+        echo '.entry-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #F3F4F6;font-size:12px;color:#6B7280}';
+        echo '.entry-num{font-weight:700;color:#4F46E5;font-size:13px}';
+        echo '.entry-fields{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px}';
+        echo '.field-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#9CA3AF}';
+        echo '.field-value{font-size:13px;color:#1F2937;font-weight:500;word-break:break-word}';
+        echo '@media print{body{padding:20px}.entry{break-inside:avoid}}';
+        echo '</style></head><body>';
+        echo '<h1>' . esc_html( $form_title ) . '</h1>';
+        echo '<div class="subtitle">' . esc_html( count( $submissions ) ) . ' respuestas</div>';
+
+        foreach ( $submissions as $idx => $row ) {
+            $data = json_decode( $row->data, true );
+            $data_map = array();
+            if ( is_array( $data ) ) {
+                foreach ( $data as $field ) {
+                    $data_map[ $field['id'] ] = $field;
+                }
+            }
+
+            $ts = strtotime( $row->submitted_at );
+            $date_str = $ts ? gmdate( 'd/m/Y H:i', $ts ) : $row->submitted_at;
+
+            echo '<div class="entry">';
+            echo '<div class="entry-header">';
+            echo '<span class="entry-num">#' . ( $idx + 1 ) . '</span>';
+            echo '<span>' . esc_html( $date_str ) . '</span>';
+            echo '<span>' . esc_html( $row->ip_address ) . '</span>';
+            echo '</div>';
+            echo '<div class="entry-fields">';
+
+            foreach ( $headers as $h ) {
+                $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
+                $val = is_array( $raw_val ) ? implode( ', ', $raw_val ) : $raw_val;
+                if ( '' === $val ) $val = "\xE2\x80\x94";
+
+                echo '<div><div class="field-label">' . esc_html( $h['label'] ) . '</div>';
+                echo '<div class="field-value">' . esc_html( $val ) . '</div></div>';
+            }
+
+            echo '</div></div>';
+        }
+
+        echo '<script>window.onload=function(){window.print()}</script>';
+        echo '</body></html>';
+        exit;
+    }
+
     public function render_page() {
         global $wpdb;
         $table = $wpdb->prefix . 'formularios_submissions';
@@ -246,10 +343,23 @@ class Formularios_Submissions_Page {
                     </div>
                     <div class="fm-sub-stat-spacer"></div>
                     <?php if ( $active_total > 0 ) : ?>
-                        <button type="button" class="fm-sub-export-btn" data-form-id="<?php echo esc_attr( $active_form_id ); ?>">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Exportar CSV
-                        </button>
+                        <div class="fm-export-dropdown">
+                            <button type="button" class="fm-export-trigger" data-form-id="<?php echo esc_attr( $active_form_id ); ?>">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Exportar
+                                <svg class="fm-export-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div class="fm-export-menu">
+                                <button type="button" class="fm-export-option fm-sub-export-csv" data-form-id="<?php echo esc_attr( $active_form_id ); ?>">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                    <span class="fm-export-option-text"><strong>CSV</strong><small>Hoja de calculo</small></span>
+                                </button>
+                                <button type="button" class="fm-export-option fm-sub-export-pdf" data-form-id="<?php echo esc_attr( $active_form_id ); ?>">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15v-2a1 1 0 0 1 1-1h1a1 1 0 0 1 0 2H9"/></svg>
+                                    <span class="fm-export-option-text"><strong>PDF</strong><small>Documento</small></span>
+                                </button>
+                            </div>
+                        </div>
                     <?php endif; ?>
                 </div>
 
@@ -277,78 +387,70 @@ class Formularios_Submissions_Page {
                     }
                     ?>
 
-                    <div class="fm-submissions-table-wrap">
-                        <table class="fm-submissions-table">
-                            <thead>
-                                <tr>
-                                    <th class="fm-col-id">#</th>
-                                    <?php foreach ( $headers as $h ) : ?>
-                                        <th><?php echo esc_html( $h['label'] ); ?></th>
-                                    <?php endforeach; ?>
-                                    <th class="fm-col-date">Fecha</th>
-                                    <th class="fm-col-ip">IP</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ( $submissions as $idx => $row ) :
-                                    $data = json_decode( $row->data, true );
-                                    $data_map = array();
-                                    if ( is_array( $data ) ) {
-                                        foreach ( $data as $field ) {
-                                            $data_map[ $field['id'] ] = $field;
-                                        }
-                                    }
-                                    $row_num = $offset + $idx + 1;
+                    <div class="fm-entries-list">
+                        <?php foreach ( $submissions as $idx => $row ) :
+                            $data = json_decode( $row->data, true );
+                            $data_map = array();
+                            if ( is_array( $data ) ) {
+                                foreach ( $data as $field ) {
+                                    $data_map[ $field['id'] ] = $field;
+                                }
+                            }
+                            $row_num = $offset + $idx + 1;
 
-                                    // Build detail data for the panel
-                                    $detail_fields = array();
-                                    foreach ( $headers as $h ) {
+                            // Build detail data for the panel
+                            $detail_fields = array();
+                            foreach ( $headers as $h ) {
+                                $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
+                                $detail_fields[] = array(
+                                    'label' => $h['label'],
+                                    'type'  => $h['type'],
+                                    'value' => $raw_val,
+                                );
+                            }
+                            $detail_json = wp_json_encode( array(
+                                'num'        => $row_num,
+                                'fields'     => $detail_fields,
+                                'date'       => $row->submitted_at,
+                                'ip'         => $row->ip_address,
+                                'user_agent' => $row->user_agent ?? '',
+                            ), JSON_UNESCAPED_UNICODE );
+
+                            // Format date
+                            $ts = strtotime( $row->submitted_at );
+                            $formatted_date = $ts ? gmdate( 'd/m/Y', $ts ) : '';
+                            $formatted_time = $ts ? gmdate( 'H:i', $ts ) : '';
+                        ?>
+                            <div class="fm-entry" data-detail="<?php echo esc_attr( $detail_json ); ?>">
+                                <div class="fm-entry-header">
+                                    <span class="fm-entry-num">#<?php echo esc_html( $row_num ); ?></span>
+                                    <span class="fm-entry-date">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        <?php echo esc_html( $formatted_date ); ?>
+                                        <span class="fm-entry-time"><?php echo esc_html( $formatted_time ); ?></span>
+                                    </span>
+                                    <span class="fm-entry-ip"><?php echo esc_html( $row->ip_address ); ?></span>
+                                    <svg class="fm-entry-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                </div>
+                                <div class="fm-entry-fields">
+                                    <?php foreach ( $headers as $hi => $h ) :
                                         $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
-                                        $detail_fields[] = array(
-                                            'label' => $h['label'],
-                                            'type'  => $h['type'],
-                                            'value' => $raw_val,
-                                        );
-                                    }
-                                    $detail_json = wp_json_encode( array(
-                                        'num'        => $row_num,
-                                        'fields'     => $detail_fields,
-                                        'date'       => $row->submitted_at,
-                                        'ip'         => $row->ip_address,
-                                        'user_agent' => $row->user_agent ?? '',
-                                    ), JSON_UNESCAPED_UNICODE );
-
-                                    // Format date
-                                    $ts = strtotime( $row->submitted_at );
-                                    $formatted_date = $ts ? gmdate( 'd/m/Y H:i', $ts ) : $row->submitted_at;
-                                ?>
-                                    <tr class="fm-submission-row" data-detail="<?php echo esc_attr( $detail_json ); ?>">
-                                        <td class="fm-col-id"><?php echo esc_html( $row_num ); ?></td>
-                                        <?php foreach ( $headers as $h ) :
-                                            $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
-                                            if ( 'file' === $h['type'] && ! empty( $raw_val ) ) :
-                                                $file_urls = is_array( $raw_val ) ? $raw_val : array( $raw_val );
-                                                ?>
-                                                <td>
-                                                    <?php foreach ( $file_urls as $fi => $furl ) : ?>
-                                                        <a href="<?php echo esc_url( $furl ); ?>" target="_blank" rel="noopener" class="fm-table-file-link">
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                                            <?php echo esc_html( sprintf( 'Archivo %d', $fi + 1 ) ); ?>
-                                                        </a>
-                                                    <?php endforeach; ?>
-                                                </td>
-                                            <?php else :
-                                                $val = is_array( $raw_val ) ? implode( ', ', $raw_val ) : $raw_val;
-                                                ?>
-                                                <td title="<?php echo esc_attr( $val ); ?>"><?php echo esc_html( $val ); ?></td>
-                                            <?php endif; ?>
-                                        <?php endforeach; ?>
-                                        <td class="fm-col-date"><?php echo esc_html( $formatted_date ); ?></td>
-                                        <td class="fm-col-ip"><?php echo esc_html( $row->ip_address ); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                        if ( 'file' === $h['type'] && ! empty( $raw_val ) ) :
+                                            $file_urls = is_array( $raw_val ) ? $raw_val : array( $raw_val );
+                                            $val = count( $file_urls ) . ' archivo' . ( count( $file_urls ) > 1 ? 's' : '' );
+                                        else :
+                                            $val = is_array( $raw_val ) ? implode( ', ', $raw_val ) : $raw_val;
+                                        endif;
+                                        if ( '' === $val ) $val = "\xE2\x80\x94";
+                                    ?>
+                                        <div class="fm-entry-field">
+                                            <span class="fm-entry-field-label"><?php echo esc_html( $h['label'] ); ?></span>
+                                            <span class="fm-entry-field-value"><?php echo esc_html( $val ); ?></span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
 
                     <!-- Detail Panel (hidden by default) -->

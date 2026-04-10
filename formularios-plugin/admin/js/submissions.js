@@ -7,15 +7,15 @@
     var $meta = $('#fm-detail-meta');
     var $num = $('#fm-detail-num');
 
-    // Open detail on row click
-    $(document).on('click', '.fm-submission-row', function(e) {
+    // Open detail on entry card click
+    $(document).on('click', '.fm-entry', function(e) {
         if ($(e.target).closest('a').length) return;
 
         var detail = $(this).data('detail');
         if (!detail) return;
 
-        $('.fm-submission-row').removeClass('fm-row-active');
-        $(this).addClass('fm-row-active');
+        $('.fm-entry').removeClass('fm-entry-active');
+        $(this).addClass('fm-entry-active');
 
         renderDetail(detail);
         openPanel();
@@ -32,18 +32,52 @@
         }
     });
 
+    // --- Export Dropdown ---
+
+    $(document).on('click', '.fm-export-trigger', function(e) {
+        e.stopPropagation();
+        var $dropdown = $(this).closest('.fm-export-dropdown');
+        var wasOpen = $dropdown.hasClass('open');
+        $('.fm-export-dropdown').removeClass('open');
+        if (!wasOpen) $dropdown.addClass('open');
+    });
+
+    $(document).on('click', function() {
+        $('.fm-export-dropdown').removeClass('open');
+    });
+
+    $(document).on('click', '.fm-export-menu', function(e) {
+        e.stopPropagation();
+    });
+
     // Export CSV
-    $(document).on('click', '.fm-sub-export-btn', function() {
+    $(document).on('click', '.fm-sub-export-csv', function() {
+        $('.fm-export-dropdown').removeClass('open');
         var formId = $(this).data('form-id');
         if (!formId || typeof fmSubmissions === 'undefined') return;
 
-        var url = fmSubmissions.ajax_url +
+        window.location.href = fmSubmissions.ajax_url +
             '?action=formularios_export_submissions' +
             '&form_id=' + formId +
             '&nonce=' + fmSubmissions.nonce;
-
-        window.location.href = url;
     });
+
+    // Export PDF
+    $(document).on('click', '.fm-sub-export-pdf', function() {
+        $('.fm-export-dropdown').removeClass('open');
+        var formId = $(this).data('form-id');
+        if (!formId || typeof fmSubmissions === 'undefined') return;
+
+        window.open(
+            fmSubmissions.ajax_url +
+            '?action=formularios_export_submissions_pdf' +
+            '&form_id=' + formId +
+            '&nonce=' + fmSubmissions.nonce,
+            '_blank'
+        );
+    });
+
+    // --- Panel ---
 
     function openPanel() {
         $backdrop.fadeIn(200);
@@ -55,7 +89,7 @@
             $panel.removeClass('fm-detail-open');
         });
         $backdrop.fadeOut(200);
-        $('.fm-submission-row').removeClass('fm-row-active');
+        $('.fm-entry').removeClass('fm-entry-active');
     }
 
     function renderDetail(data) {

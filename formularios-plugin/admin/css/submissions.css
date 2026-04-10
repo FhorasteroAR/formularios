@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Formularios - Submissions Page Styles (Enhanced)
+   Formularios - Submissions Page Styles (Card Layout)
    ========================================================================== */
 
 .fm-submissions-wrap {
@@ -128,11 +128,19 @@
     flex: 1;
 }
 
-.fm-sub-export-btn {
+/* ==========================================================================
+   Export Dropdown (shared pattern)
+   ========================================================================== */
+
+.fm-export-dropdown {
+    position: relative;
+}
+
+.fm-export-trigger {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 10px 18px;
+    padding: 8px 14px;
     font-size: 13px;
     font-weight: 600;
     border-radius: 8px;
@@ -141,111 +149,214 @@
     color: #374151;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1.4;
     white-space: nowrap;
 }
 
-.fm-sub-export-btn:hover {
+.fm-export-trigger:hover {
     border-color: #4F46E5;
     color: #4F46E5;
     background: #EEF2FF;
 }
 
-.fm-sub-export-btn svg {
-    flex-shrink: 0;
-}
-
-/* Table */
-.fm-submissions-table-wrap {
-    overflow-x: auto;
-    border-radius: 10px;
-    border: 1px solid #E5E7EB;
-    background: #FFFFFF;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.fm-submissions-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.fm-submissions-table thead th {
-    background: #F9FAFB;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #6B7280;
-    padding: 14px 18px;
-    border-bottom: 1px solid #E5E7EB;
-    text-align: left;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-.fm-submissions-table tbody td {
-    padding: 14px 18px;
-    font-size: 14px;
-    color: #374151;
-    border-bottom: 1px solid #F3F4F6;
-    max-width: 280px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.5;
-}
-
-.fm-submissions-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.fm-submission-row {
-    cursor: pointer;
-    transition: background 0.12s ease;
-}
-
-.fm-submissions-table tbody tr:hover td {
-    background: #F9FAFB;
-}
-
-.fm-submission-row.fm-row-active td {
+.fm-export-dropdown.open .fm-export-trigger {
+    border-color: #4F46E5;
+    color: #4F46E5;
     background: #EEF2FF;
 }
 
-.fm-col-id {
-    width: 50px;
-    text-align: center !important;
-    color: #9CA3AF !important;
+.fm-export-chevron {
+    transition: transform 0.2s ease;
+    margin-left: 2px;
+}
+
+.fm-export-dropdown.open .fm-export-chevron {
+    transform: rotate(180deg);
+}
+
+.fm-export-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 200px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    padding: 6px;
+    z-index: 100;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.fm-export-dropdown.open .fm-export-menu {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.fm-export-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #374151;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    text-align: left;
+}
+
+.fm-export-option:hover {
+    background: #F3F4F6;
+}
+
+.fm-export-option svg {
+    flex-shrink: 0;
+    color: #9CA3AF;
+}
+
+.fm-export-option:hover svg {
+    color: #4F46E5;
+}
+
+.fm-export-option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.3;
+}
+
+.fm-export-option-text strong {
+    font-size: 13px;
     font-weight: 600;
-    font-size: 12px !important;
+    color: #1F2937;
 }
 
-.fm-col-date {
-    width: 150px;
-    font-size: 13px !important;
-    color: #6B7280 !important;
-    white-space: nowrap;
+.fm-export-option-text small {
+    font-size: 11px;
+    color: #9CA3AF;
+    font-weight: 400;
 }
 
-.fm-col-ip {
-    width: 120px;
-    color: #9CA3AF !important;
-    font-size: 13px !important;
-    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+/* ==========================================================================
+   Entry Cards
+   ========================================================================== */
+
+.fm-entries-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.fm-table-file-link {
+.fm-entry {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 18px 22px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fm-entry:hover {
+    border-color: #D1D5DB;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.fm-entry-active {
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 1px #4F46E5;
+}
+
+/* Entry Header */
+.fm-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.fm-entry-num {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4F46E5;
+}
+
+.fm-entry-date {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    color: #4F46E5;
-    text-decoration: none;
-    font-size: 13px;
+    gap: 5px;
+    font-size: 12px;
+    color: #6B7280;
     font-weight: 500;
 }
 
-.fm-table-file-link:hover {
-    text-decoration: underline;
+.fm-entry-date svg {
+    color: #9CA3AF;
+}
+
+.fm-entry-time {
+    color: #9CA3AF;
+    margin-left: 2px;
+}
+
+.fm-entry-ip {
+    font-size: 12px;
+    color: #9CA3AF;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    margin-left: auto;
+}
+
+.fm-entry-arrow {
+    flex-shrink: 0;
+    color: #D1D5DB;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.fm-entry:hover .fm-entry-arrow {
+    color: #4F46E5;
+    transform: translateX(2px);
+}
+
+/* Entry Fields Grid */
+.fm-entry-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px 20px;
+}
+
+.fm-entry-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.fm-entry-field-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #9CA3AF;
+    line-height: 1.4;
+}
+
+.fm-entry-field-value {
+    font-size: 14px;
+    color: #1F2937;
+    font-weight: 500;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Empty */
@@ -271,7 +382,10 @@
     margin: 0;
 }
 
-/* Pagination */
+/* ==========================================================================
+   Pagination
+   ========================================================================== */
+
 .fm-pagination {
     display: flex;
     align-items: center;
@@ -327,7 +441,10 @@
     color: #9CA3AF;
 }
 
-/* Detail Panel */
+/* ==========================================================================
+   Detail Panel
+   ========================================================================== */
+
 .fm-detail-backdrop {
     position: fixed;
     inset: 0;
@@ -494,7 +611,10 @@
     word-break: break-all;
 }
 
-/* Responsive */
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
 @media (max-width: 782px) {
     .fm-submissions-tabs {
         gap: 0;
@@ -511,9 +631,11 @@
     .fm-sub-stat-spacer {
         display: none;
     }
-    .fm-sub-export-btn {
-        width: 100%;
-        justify-content: center;
+    .fm-entry-fields {
+        grid-template-columns: 1fr;
+    }
+    .fm-entry-ip {
+        display: none;
     }
 }
 
@@ -522,9 +644,10 @@
         width: 100%;
         max-width: 100%;
     }
-    .fm-submissions-table thead th,
-    .fm-submissions-table tbody td {
-        padding: 10px 12px;
-        font-size: 13px;
+    .fm-entry {
+        padding: 14px 16px;
+    }
+    .fm-entry-fields {
+        grid-template-columns: 1fr;
     }
 }

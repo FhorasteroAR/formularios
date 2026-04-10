@@ -332,14 +332,38 @@
         $body.html(html);
     }
 
-    // --- Export Field Stats CSV ---
+    // --- Export Dropdown ---
 
     var lastFieldStats = null;
     var lastDateRange = {};
 
-    $(document).on('click', '#fm-export-field-stats', function() {
-        if (!lastFieldStats || lastFieldStats.length === 0) return;
+    // Toggle dropdown
+    $(document).on('click', '.fm-export-trigger', function(e) {
+        e.stopPropagation();
+        var $dropdown = $(this).closest('.fm-export-dropdown');
+        var wasOpen = $dropdown.hasClass('open');
+        $('.fm-export-dropdown').removeClass('open');
+        if (!wasOpen) $dropdown.addClass('open');
+    });
 
+    // Close dropdown on outside click
+    $(document).on('click', function() {
+        $('.fm-export-dropdown').removeClass('open');
+    });
+
+    $(document).on('click', '.fm-export-menu', function(e) {
+        e.stopPropagation();
+    });
+
+    // --- Export Field Stats CSV ---
+
+    $(document).on('click', '#fm-export-field-stats-csv', function() {
+        $('.fm-export-dropdown').removeClass('open');
+        if (!lastFieldStats || lastFieldStats.length === 0) return;
+        exportFieldStatsCSV();
+    });
+
+    function exportFieldStatsCSV() {
         var rows = [];
         rows.push(['Formulario', 'Campo', 'Tipo', 'Respuestas', 'Valores unicos', 'Promedio', 'Valor', 'Cantidad', 'Porcentaje']);
 
@@ -373,6 +397,94 @@
             });
         });
 
+        downloadCSV(rows, 'estadisticas-campos');
+    }
+
+    // --- Export Field Stats PDF ---
+
+    $(document).on('click', '#fm-export-field-stats-pdf', function() {
+        $('.fm-export-dropdown').removeClass('open');
+        if (!lastFieldStats || lastFieldStats.length === 0) return;
+        exportFieldStatsPDF();
+    });
+
+    function exportFieldStatsPDF() {
+        var from = lastDateRange.from || '';
+        var to = lastDateRange.to || '';
+
+        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Estadisticas por campo</title>';
+        html += '<style>';
+        html += 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1F2937;max-width:900px;margin:0 auto;padding:40px 32px;font-size:13px;line-height:1.5}';
+        html += 'h1{font-size:20px;font-weight:700;margin:0 0 4px;color:#1F2937}';
+        html += '.period{font-size:12px;color:#6B7280;margin-bottom:28px}';
+        html += '.form-title{font-size:15px;font-weight:700;color:#374151;margin:24px 0 10px;padding-bottom:6px;border-bottom:2px solid #E5E7EB}';
+        html += '.field-card{border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
+        html += '.field-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #F3F4F6}';
+        html += '.field-label{font-size:13px;font-weight:700;color:#1F2937}';
+        html += '.field-type{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#9CA3AF;background:#F3F4F6;padding:2px 8px;border-radius:4px}';
+        html += '.metrics{display:flex;gap:20px;margin-bottom:10px}';
+        html += '.metric-val{font-size:18px;font-weight:700;color:#4F46E5}';
+        html += '.metric-label{font-size:10px;color:#9CA3AF}';
+        html += 'table{width:100%;border-collapse:collapse;font-size:12px}';
+        html += 'th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6B7280;padding:6px 8px;border-bottom:1px solid #E5E7EB}';
+        html += 'td{padding:5px 8px;border-bottom:1px solid #F3F4F6;color:#374151}';
+        html += '.bar-cell{width:40%}.bar-track{height:6px;background:#F3F4F6;border-radius:99px;overflow:hidden}';
+        html += '.bar-fill{height:100%;background:linear-gradient(90deg,#4F46E5,#818CF8);border-radius:99px}';
+        html += '@media print{body{padding:20px}}';
+        html += '</style></head><body>';
+        html += '<h1>Estadisticas por campo</h1>';
+        if (from && to) {
+            html += '<div class="period">' + escHtml(from) + ' — ' + escHtml(to) + '</div>';
+        }
+
+        lastFieldStats.forEach(function(formGroup) {
+            html += '<div class="form-title">' + escHtml(formGroup.form_title) + '</div>';
+            formGroup.fields.forEach(function(field) {
+                html += '<div class="field-card">';
+                html += '<div class="field-header"><span class="field-label">' + escHtml(field.label) + '</span><span class="field-type">' + escHtml(field.input_type) + '</span></div>';
+                html += '<div class="metrics">';
+                html += '<div><div class="metric-val">' + field.total + '</div><div class="metric-label">Respuestas</div></div>';
+                html += '<div><div class="metric-val">' + field.unique + '</div><div class="metric-label">Valores unicos</div></div>';
+                if (field.numeric_avg !== null && field.numeric_avg !== undefined) {
+                    html += '<div><div class="metric-val">' + field.numeric_avg + '</div><div class="metric-label">Promedio</div></div>';
+                }
+                html += '</div>';
+
+                var topValues = field.top_values;
+                if (topValues && typeof topValues === 'object') {
+                    var keys = Object.keys(topValues);
+                    if (keys.length > 0) {
+                        var maxCount = topValues[keys[0]] || 1;
+                        html += '<table><thead><tr><th>Valor</th><th class="bar-cell">Distribucion</th><th style="text-align:right">Cantidad</th><th style="text-align:right">%</th></tr></thead><tbody>';
+                        keys.forEach(function(val) {
+                            var count = topValues[val];
+                            var pct = field.total > 0 ? ((count / field.total) * 100).toFixed(1) : 0;
+                            var barW = maxCount > 0 ? ((count / maxCount) * 100) : 0;
+                            html += '<tr><td>' + escHtml(val) + '</td>';
+                            html += '<td class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:' + barW + '%"></div></div></td>';
+                            html += '<td style="text-align:right;font-weight:600">' + count + '</td>';
+                            html += '<td style="text-align:right;color:#9CA3AF">' + pct + '%</td></tr>';
+                        });
+                        html += '</tbody></table>';
+                    }
+                }
+                html += '</div>';
+            });
+        });
+
+        html += '</body></html>';
+        openPrintWindow(html);
+    }
+
+    function openPrintWindow(html) {
+        var w = window.open('', '_blank', 'width=900,height=700');
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        setTimeout(function() { w.print(); }, 300);
+    }
+
+    function downloadCSV(rows, basename) {
         var csv = rows.map(function(r) {
             return r.map(function(cell) {
                 var s = String(cell === null || cell === undefined ? '' : cell);
@@ -390,12 +502,12 @@
         a.href = url;
         var from = lastDateRange.from || '';
         var to = lastDateRange.to || '';
-        a.download = 'estadisticas-campos' + (from ? '_' + from : '') + (to ? '_' + to : '') + '.csv';
+        a.download = basename + (from ? '_' + from : '') + (to ? '_' + to : '') + '.csv';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-    });
+    }
 
     // --- Helpers ---
 

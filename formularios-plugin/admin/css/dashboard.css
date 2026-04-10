@@ -361,31 +361,118 @@
     color: #9CA3AF;
 }
 
-.fm-dash-export-btn {
+/* Export Dropdown (shared) */
+.fm-export-dropdown {
+    position: relative;
+}
+
+.fm-export-trigger {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    border-radius: 8px !important;
-    border: 1px solid #D1D5DB !important;
-    background: #FFFFFF !important;
-    color: #374151 !important;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid #D1D5DB;
+    background: #FFFFFF;
+    color: #374151;
     cursor: pointer;
     transition: all 0.15s ease;
-    height: auto !important;
-    line-height: 1.4 !important;
+    line-height: 1.4;
+    white-space: nowrap;
 }
 
-.fm-dash-export-btn:hover {
-    border-color: #4F46E5 !important;
-    color: #4F46E5 !important;
-    background: #EEF2FF !important;
+.fm-export-trigger:hover {
+    border-color: #4F46E5;
+    color: #4F46E5;
+    background: #EEF2FF;
 }
 
-.fm-dash-export-btn svg {
+.fm-export-dropdown.open .fm-export-trigger {
+    border-color: #4F46E5;
+    color: #4F46E5;
+    background: #EEF2FF;
+}
+
+.fm-export-chevron {
+    transition: transform 0.2s ease;
+    margin-left: 2px;
+}
+
+.fm-export-dropdown.open .fm-export-chevron {
+    transform: rotate(180deg);
+}
+
+.fm-export-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 200px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    padding: 6px;
+    z-index: 100;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.fm-export-dropdown.open .fm-export-menu {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.fm-export-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #374151;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    text-align: left;
+}
+
+.fm-export-option:hover {
+    background: #F3F4F6;
+}
+
+.fm-export-option svg {
     flex-shrink: 0;
+    color: #9CA3AF;
+}
+
+.fm-export-option:hover svg {
+    color: #4F46E5;
+}
+
+.fm-export-option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.3;
+}
+
+.fm-export-option-text strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1F2937;
+}
+
+.fm-export-option-text small {
+    font-size: 11px;
+    color: #9CA3AF;
+    font-weight: 400;
 }
 
 .fm-fstat-form {

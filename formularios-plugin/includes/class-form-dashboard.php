@@ -396,10 +396,23 @@ class Formularios_Dashboard {
                         <h2>Estadisticas por campo</h2>
                         <span class="fm-dash-field-stats-hint">Campos marcados con "Estadisticas" en el constructor</span>
                     </div>
-                    <button type="button" id="fm-export-field-stats" class="button fm-dash-export-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Exportar CSV
-                    </button>
+                    <div class="fm-export-dropdown">
+                        <button type="button" class="fm-export-trigger">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Exportar
+                            <svg class="fm-export-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="fm-export-menu">
+                            <button type="button" class="fm-export-option" id="fm-export-field-stats-csv">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                <span class="fm-export-option-text"><strong>CSV</strong><small>Hoja de calculo</small></span>
+                            </button>
+                            <button type="button" class="fm-export-option" id="fm-export-field-stats-pdf">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15v-2a1 1 0 0 1 1-1h1a1 1 0 0 1 0 2H9"/></svg>
+                                <span class="fm-export-option-text"><strong>PDF</strong><small>Documento</small></span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div id="fm-field-stats-body" class="fm-dash-field-stats-body"></div>
             </div>

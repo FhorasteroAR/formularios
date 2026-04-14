@@ -48,6 +48,7 @@ class Formularios_Renderer {
             'shadow_style'  => 'soft',
             'border_radius' => 'medium',
             'font_family'   => 'system',
+            'form_width'    => 'medium',
         ) );
 
         wp_enqueue_style( 'formularios-front' );
@@ -141,11 +142,19 @@ class Formularios_Renderer {
             'poppins'      => "'Poppins', sans-serif",
             'merriweather' => "'Merriweather', Georgia, serif",
         );
+        $width_map = array(
+            'compact' => '480px',
+            'medium'  => '680px',
+            'wide'    => '880px',
+            'xwide'   => '1080px',
+            'full'    => '100%',
+        );
 
         $s_radius      = $settings['border_radius'];
         $s_shadow       = $settings['shadow_style'];
         $s_btn          = $settings['btn_style'];
         $s_font         = $settings['font_family'];
+        $s_width        = $settings['form_width'];
 
         $css_vars  = '--fm-theme:' . esc_attr( $settings['theme_color'] ) . ';';
         $css_vars .= '--fm-accent:' . esc_attr( $settings['accent_color'] ) . ';';
@@ -156,6 +165,7 @@ class Formularios_Renderer {
         $css_vars .= '--fm-shadow:' . $shadow_pair[0] . ';';
         $css_vars .= '--fm-shadow-lg:' . $shadow_pair[1] . ';';
         $css_vars .= '--fm-font:' . ( $font_map[ $s_font ] ?? $font_map['system'] ) . ';';
+        $css_vars .= '--fm-max-width:' . ( $width_map[ $s_width ] ?? '680px' ) . ';';
 
         ob_start();
         ?>

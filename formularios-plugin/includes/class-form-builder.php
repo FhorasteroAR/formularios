@@ -169,6 +169,7 @@ class Formularios_Builder {
             'shadow_style'      => 'soft',
             'border_radius'     => 'medium',
             'font_family'       => 'system',
+            'form_width'        => 'medium',
             'notify_admin'      => '',
             'notify_respondent' => '0',
         ) );
@@ -233,6 +234,16 @@ class Formularios_Builder {
                     <option value="merriweather" <?php selected( $settings['font_family'], 'merriweather' ); ?>>Merriweather</option>
                 </select>
             </p>
+            <p>
+                <label>Ancho del formulario</label>
+                <select name="formularios_settings[form_width]" class="widefat">
+                    <option value="compact" <?php selected( $settings['form_width'], 'compact' ); ?>>Compacto (480px)</option>
+                    <option value="medium" <?php selected( $settings['form_width'], 'medium' ); ?>>Mediano (680px)</option>
+                    <option value="wide" <?php selected( $settings['form_width'], 'wide' ); ?>>Amplio (880px)</option>
+                    <option value="xwide" <?php selected( $settings['form_width'], 'xwide' ); ?>>Extra amplio (1080px)</option>
+                    <option value="full" <?php selected( $settings['form_width'], 'full' ); ?>>Ancho completo</option>
+                </select>
+            </p>
             <hr>
             <p>
                 <label>Enviar notificacion por email a (uno por linea)</label>
@@ -278,6 +289,7 @@ class Formularios_Builder {
             $allowed_shadow  = array( 'none', 'soft', 'medium', 'strong' );
             $allowed_radius  = array( 'none', 'small', 'medium', 'large' );
             $allowed_font    = array( 'system', 'inter', 'poppins', 'merriweather' );
+            $allowed_width   = array( 'compact', 'medium', 'wide', 'xwide', 'full' );
 
             $settings = array(
                 'submit_text'       => sanitize_text_field( $raw['submit_text'] ?? '' ),
@@ -289,6 +301,7 @@ class Formularios_Builder {
                 'shadow_style'      => in_array( $raw['shadow_style'] ?? '', $allowed_shadow, true ) ? $raw['shadow_style'] : 'soft',
                 'border_radius'     => in_array( $raw['border_radius'] ?? '', $allowed_radius, true ) ? $raw['border_radius'] : 'medium',
                 'font_family'       => in_array( $raw['font_family'] ?? '', $allowed_font, true ) ? $raw['font_family'] : 'system',
+                'form_width'        => in_array( $raw['form_width'] ?? '', $allowed_width, true ) ? $raw['form_width'] : 'medium',
                 'notify_admin'      => sanitize_textarea_field( $raw['notify_admin'] ?? '' ),
                 'notify_respondent' => isset( $raw['notify_respondent'] ) ? '1' : '0',
             );

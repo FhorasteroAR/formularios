@@ -151,6 +151,7 @@
             var ajaxOpts = {
                 url: formulariosFront.ajax_url,
                 type: 'POST',
+                dataType: 'json',
                 success: function(response) {
                     ajaxDone = true;
                     ajaxResponse = response;
@@ -208,6 +209,8 @@
                             showValidationErrors(ajaxResponse.data.validation);
                         } else if (ajaxResponse && ajaxResponse.data && typeof ajaxResponse.data === 'string') {
                             alert(ajaxResponse.data);
+                        } else {
+                            alert(i18n.error_generic || 'Ocurrio un error. Intenta de nuevo.');
                         }
                         $submitBtn.prop('disabled', false).text($submitBtn.data('original-text') || 'Enviar');
                     }

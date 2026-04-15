@@ -174,11 +174,19 @@ class Formularios_Submissions {
         /**
          * Fires after a successful form submission.
          *
+         * Wrapped in try-catch so that failures in notification hooks
+         * (e.g. wp_mail via WP Mail SMTP) never prevent the success
+         * response from reaching the browser.
+         *
          * @param int   $form_id     The form post ID.
          * @param array $submission  The sanitized submission data.
          * @param array $elements    The form elements definition.
          */
-        do_action( 'formularios_after_submission', $form_id, $submission, $elements );
+        try {
+            do_action( 'formularios_after_submission', $form_id, $submission, $elements );
+        } catch ( \Throwable $e ) {
+            error_log( 'Formularios: post-submission hook error — ' . $e->getMessage() );
+        }
 
         wp_send_json_success( 'Respuesta guardada correctamente.' );
     }

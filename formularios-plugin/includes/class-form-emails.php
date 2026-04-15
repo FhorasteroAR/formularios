@@ -144,6 +144,9 @@ class Formularios_Emails {
 
     /**
      * Send an HTML email using wp_mail.
+     *
+     * Wrapped in try-catch to prevent fatal errors from third-party
+     * mailer plugins (e.g. WP Mail SMTP) from killing the request.
      */
     private function send_html_email( $to, $subject, $body ) {
         $headers = array(
@@ -156,6 +159,10 @@ class Formularios_Emails {
             $headers[] = 'From: ' . $site_name . ' <' . $admin_email . '>';
         }
 
-        wp_mail( $to, $subject, $body, $headers );
+        try {
+            wp_mail( $to, $subject, $body, $headers );
+        } catch ( \Throwable $e ) {
+            error_log( 'Formularios: wp_mail() failed — ' . $e->getMessage() );
+        }
     }
 }

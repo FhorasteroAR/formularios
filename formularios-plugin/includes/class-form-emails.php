@@ -4,13 +4,13 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Formularios_Emails {
 
     public function __construct() {
-        add_action( 'formularios_after_submission', array( $this, 'send_notifications' ), 10, 3 );
+        add_action( 'formularios_after_submission', array( $this, 'send_notifications' ), 10, 4 );
     }
 
     /**
      * Send email notifications after a form submission.
      */
-    public function send_notifications( $form_id, $submission, $elements ) {
+    public function send_notifications( $form_id, $submission, $elements, $submission_number = 0 ) {
         $settings = get_post_meta( $form_id, '_formularios_settings', true );
         if ( empty( $settings ) ) return;
 
@@ -20,8 +20,8 @@ class Formularios_Emails {
         // 1. Notify admin/custom emails
         $admin_emails = $this->parse_email_list( $settings['notify_admin'] ?? '' );
         if ( ! empty( $admin_emails ) ) {
-            $subject   = sprintf( 'Nueva respuesta: %s', $form_title );
-            $body_html = $this->build_admin_email( $form_title, $submission );
+            $subject   = sprintf( 'Nueva respuesta #%d: %s', $submission_number, $form_title );
+            $body_html = $this->build_admin_email( $form_title, $submission, $submission_number );
             $this->send_html_email( $admin_emails, $subject, $body_html, $attachments );
         }
 
@@ -29,8 +29,8 @@ class Formularios_Emails {
         if ( ! empty( $settings['notify_respondent'] ) && '1' === $settings['notify_respondent'] ) {
             $respondent_email = $this->find_respondent_email( $submission, $elements );
             if ( $respondent_email && is_email( $respondent_email ) ) {
-                $subject         = sprintf( 'Copia de tu respuesta: %s', $form_title );
-                $respondent_body = $this->build_respondent_email( $form_title, $submission );
+                $subject         = sprintf( 'Copia de tu respuesta #%d: %s', $submission_number, $form_title );
+                $respondent_body = $this->build_respondent_email( $form_title, $submission, $submission_number );
                 $this->send_html_email( array( $respondent_email ), $subject, $respondent_body, $attachments );
             }
         }
@@ -40,21 +40,21 @@ class Formularios_Emails {
        Email body builders
     ------------------------------------------------------------------ */
 
-    private function build_admin_email( $form_title, $submission ) {
+    private function build_admin_email( $form_title, $submission, $submission_number ) {
         return $this->build_email(
-            'Nueva respuesta recibida',
+            sprintf( 'Nueva respuesta recibida (#%d)', $submission_number ),
             $form_title,
             $submission,
-            'Enviado el ' . esc_html( current_time( 'd/m/Y H:i' ) )
+            sprintf( 'Respuesta #%d — Enviado el %s', $submission_number, esc_html( current_time( 'd/m/Y H:i' ) ) )
         );
     }
 
-    private function build_respondent_email( $form_title, $submission ) {
+    private function build_respondent_email( $form_title, $submission, $submission_number ) {
         return $this->build_email(
-            'Copia de tu respuesta',
+            sprintf( 'Copia de tu respuesta (#%d)', $submission_number ),
             $form_title,
             $submission,
-            'Gracias por completar el formulario. Esta es una copia de tus respuestas.'
+            sprintf( 'Respuesta #%d — Gracias por completar el formulario. Esta es una copia de tus respuestas.', $submission_number )
         );
     }
 

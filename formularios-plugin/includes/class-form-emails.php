@@ -9,106 +9,213 @@ class Formularios_Emails {
 
     /**
      * Send email notifications after a form submission.
-     *
-     * @param int   $form_id    The form post ID.
-     * @param array $submission The submitted data.
-     * @param array $elements   The form element definitions.
      */
     public function send_notifications( $form_id, $submission, $elements ) {
         $settings = get_post_meta( $form_id, '_formularios_settings', true );
         if ( empty( $settings ) ) return;
 
-        $form_title = get_the_title( $form_id );
-        $body_html  = $this->build_email_body( $form_title, $submission );
+        $form_title  = get_the_title( $form_id );
+        $attachments = $this->collect_file_attachments( $submission );
 
         // 1. Notify admin/custom emails
         $admin_emails = $this->parse_email_list( $settings['notify_admin'] ?? '' );
         if ( ! empty( $admin_emails ) ) {
-            $subject = sprintf( 'Nueva respuesta: %s', $form_title );
-            $this->send_html_email( $admin_emails, $subject, $body_html );
+            $subject   = sprintf( 'Nueva respuesta: %s', $form_title );
+            $body_html = $this->build_admin_email( $form_title, $submission );
+            $this->send_html_email( $admin_emails, $subject, $body_html, $attachments );
         }
 
         // 2. Notify respondent (if enabled and there's an email field)
         if ( ! empty( $settings['notify_respondent'] ) && '1' === $settings['notify_respondent'] ) {
             $respondent_email = $this->find_respondent_email( $submission, $elements );
             if ( $respondent_email && is_email( $respondent_email ) ) {
-                $subject = sprintf( 'Copia de tu respuesta: %s', $form_title );
-                $respondent_body = $this->build_respondent_email_body( $form_title, $submission );
-                $this->send_html_email( array( $respondent_email ), $subject, $respondent_body );
+                $subject         = sprintf( 'Copia de tu respuesta: %s', $form_title );
+                $respondent_body = $this->build_respondent_email( $form_title, $submission );
+                $this->send_html_email( array( $respondent_email ), $subject, $respondent_body, $attachments );
             }
         }
     }
 
+    /* ------------------------------------------------------------------
+       Email body builders
+    ------------------------------------------------------------------ */
+
+    private function build_admin_email( $form_title, $submission ) {
+        return $this->build_email(
+            'Nueva respuesta recibida',
+            $form_title,
+            $submission,
+            'Enviado el ' . esc_html( current_time( 'd/m/Y H:i' ) )
+        );
+    }
+
+    private function build_respondent_email( $form_title, $submission ) {
+        return $this->build_email(
+            'Copia de tu respuesta',
+            $form_title,
+            $submission,
+            'Gracias por completar el formulario. Esta es una copia de tus respuestas.'
+        );
+    }
+
     /**
-     * Build the HTML email body for admin notifications.
+     * Build the full HTML email using an email-safe table layout.
      */
-    private function build_email_body( $form_title, $submission ) {
-        $html  = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;max-width:600px;margin:0 auto;padding:20px;">';
-        $html .= '<div style="background:#f9fafb;border-radius:12px;padding:32px;border:1px solid #e5e7eb;">';
-        $html .= '<h2 style="color:#1f2937;margin:0 0 8px;">Nueva respuesta recibida</h2>';
-        $html .= '<p style="color:#6b7280;margin:0 0 24px;font-size:14px;">Formulario: <strong>' . esc_html( $form_title ) . '</strong></p>';
+    private function build_email( $heading, $form_title, $submission, $footer_text ) {
+        $h  = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>';
+        $h .= '<body style="margin:0;padding:0;background-color:#f3f4f6;-webkit-font-smoothing:antialiased;">';
 
-        $html .= '<table style="width:100%;border-collapse:collapse;">';
+        // Outer wrapper table
+        $h .= '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;padding:32px 16px;">';
+        $h .= '<tr><td align="center">';
+
+        // Inner container
+        $h .= '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;">';
+
+        // Header
+        $h .= '<tr><td style="background-color:#4F46E5;padding:32px 28px;">';
+        $h .= '<h1 style="color:#ffffff;margin:0 0 6px;font-size:20px;font-weight:700;line-height:1.3;">' . esc_html( $heading ) . '</h1>';
+        $h .= '<p style="color:rgba(255,255,255,0.75);margin:0;font-size:14px;font-weight:400;">' . esc_html( $form_title ) . '</p>';
+        $h .= '</td></tr>';
+
+        // Body — stacked label/value fields
+        $h .= '<tr><td style="padding:28px;">';
+
+        $total  = count( $submission );
+        $idx    = 0;
         foreach ( $submission as $field ) {
-            $value = $field['value'];
-            if ( is_array( $value ) ) {
-                $value = implode( ', ', $value );
-            }
-            if ( '' === $value ) {
-                $value = '—';
-            }
-            $html .= '<tr style="border-bottom:1px solid #e5e7eb;">';
-            $html .= '<td style="padding:12px 8px;font-weight:600;color:#374151;vertical-align:top;width:40%;">' . esc_html( $field['label'] ?: $field['id'] ) . '</td>';
-            $html .= '<td style="padding:12px 8px;color:#1f2937;">' . esc_html( $value ) . '</td>';
-            $html .= '</tr>';
-        }
-        $html .= '</table>';
+            $idx++;
+            $label = esc_html( $field['label'] ?: $field['id'] );
+            $is_file = ( 'file' === ( $field['type'] ?? '' ) );
+            $is_last = ( $idx === $total );
 
-        $html .= '<p style="color:#9ca3af;font-size:12px;margin:24px 0 0;">Enviado el ' . esc_html( current_time( 'd/m/Y H:i' ) ) . '</p>';
-        $html .= '</div>';
-        $html .= '</body></html>';
+            // Field wrapper
+            $border = $is_last ? '' : 'border-bottom:1px solid #f3f4f6;';
+            $h .= '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="' . $border . 'margin-bottom:' . ( $is_last ? '0' : '16px' ) . ';padding-bottom:' . ( $is_last ? '0' : '16px' ) . ';">';
+            $h .= '<tr><td>';
+
+            // Label
+            $h .= '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;margin-bottom:6px;line-height:1.4;">' . $label . '</div>';
+
+            // Value
+            if ( $is_file ) {
+                $h .= $this->render_file_value( $field['value'] );
+            } else {
+                $value = $field['value'];
+                if ( is_array( $value ) ) {
+                    $value = implode( ', ', $value );
+                }
+                if ( '' === $value ) {
+                    $value = "\xE2\x80\x94";
+                }
+                $h .= '<div style="font-size:15px;color:#1f2937;line-height:1.6;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;">' . nl2br( esc_html( $value ) ) . '</div>';
+            }
+
+            $h .= '</td></tr></table>';
+        }
+
+        $h .= '</td></tr>';
+
+        // Footer
+        $h .= '<tr><td style="background-color:#f9fafb;padding:20px 28px;border-top:1px solid #e5e7eb;">';
+        $h .= '<p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.5;">' . esc_html( $footer_text ) . '</p>';
+        $h .= '</td></tr>';
+
+        // Close containers
+        $h .= '</table>';
+        $h .= '</td></tr></table>';
+        $h .= '</body></html>';
+
+        return $h;
+    }
+
+    /**
+     * Render file field value in the email body.
+     */
+    private function render_file_value( $value ) {
+        if ( empty( $value ) ) {
+            return '<div style="font-size:15px;color:#9ca3af;font-style:italic;">' . "\xE2\x80\x94" . '</div>';
+        }
+
+        $urls = is_array( $value ) ? $value : array( $value );
+        $html = '';
+
+        foreach ( $urls as $url ) {
+            $filename = basename( $url );
+            $path     = $this->url_to_path( $url );
+            $attached = ! empty( $path );
+
+            $html .= '<table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:6px;"><tr>';
+            $html .= '<td style="padding:8px 12px;background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;line-height:1.4;">';
+
+            if ( $attached ) {
+                $html .= '<span style="color:#4F46E5;font-weight:600;">&#128206; ' . esc_html( $filename ) . '</span>';
+                $html .= ' <span style="color:#9ca3af;font-size:11px;">(adjunto)</span>';
+            } else {
+                $html .= '<a href="' . esc_url( $url ) . '" style="color:#4F46E5;text-decoration:none;font-weight:600;" target="_blank">&#128206; ' . esc_html( $filename ) . '</a>';
+            }
+
+            $html .= '</td></tr></table>';
+        }
 
         return $html;
     }
 
+    /* ------------------------------------------------------------------
+       File attachments
+    ------------------------------------------------------------------ */
+
     /**
-     * Build the HTML email body for respondent copy.
+     * Collect local file paths from submission data for wp_mail attachments.
      */
-    private function build_respondent_email_body( $form_title, $submission ) {
-        $html  = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;max-width:600px;margin:0 auto;padding:20px;">';
-        $html .= '<div style="background:#f9fafb;border-radius:12px;padding:32px;border:1px solid #e5e7eb;">';
-        $html .= '<h2 style="color:#1f2937;margin:0 0 8px;">Copia de tu respuesta</h2>';
-        $html .= '<p style="color:#6b7280;margin:0 0 24px;font-size:14px;">Formulario: <strong>' . esc_html( $form_title ) . '</strong></p>';
+    private function collect_file_attachments( $submission ) {
+        $attachments = array();
 
-        $html .= '<table style="width:100%;border-collapse:collapse;">';
         foreach ( $submission as $field ) {
-            $value = $field['value'];
-            if ( is_array( $value ) ) {
-                $value = implode( ', ', $value );
+            if ( 'file' !== ( $field['type'] ?? '' ) || empty( $field['value'] ) ) {
+                continue;
             }
-            if ( '' === $value ) {
-                $value = '—';
+
+            $urls = is_array( $field['value'] ) ? $field['value'] : array( $field['value'] );
+            foreach ( $urls as $url ) {
+                $path = $this->url_to_path( $url );
+                if ( $path ) {
+                    $attachments[] = $path;
+                }
             }
-            $html .= '<tr style="border-bottom:1px solid #e5e7eb;">';
-            $html .= '<td style="padding:12px 8px;font-weight:600;color:#374151;vertical-align:top;width:40%;">' . esc_html( $field['label'] ?: $field['id'] ) . '</td>';
-            $html .= '<td style="padding:12px 8px;color:#1f2937;">' . esc_html( $value ) . '</td>';
-            $html .= '</tr>';
         }
-        $html .= '</table>';
 
-        $html .= '<p style="color:#9ca3af;font-size:12px;margin:24px 0 0;">Gracias por completar el formulario. Esta es una copia de tus respuestas.</p>';
-        $html .= '</div>';
-        $html .= '</body></html>';
-
-        return $html;
+        return $attachments;
     }
+
+    /**
+     * Convert a WordPress upload URL to its local file path.
+     */
+    private function url_to_path( $url ) {
+        if ( empty( $url ) ) return '';
+
+        $upload_dir = wp_upload_dir();
+        $base_url   = $upload_dir['baseurl'];
+        $base_dir   = $upload_dir['basedir'];
+
+        if ( 0 === strpos( $url, $base_url ) ) {
+            $path = str_replace( $base_url, $base_dir, $url );
+            if ( file_exists( $path ) ) {
+                return $path;
+            }
+        }
+
+        return '';
+    }
+
+    /* ------------------------------------------------------------------
+       Helpers
+    ------------------------------------------------------------------ */
 
     /**
      * Find the respondent's email from submission data.
-     * Looks for the first email-type field with a value.
      */
     private function find_respondent_email( $submission, $elements ) {
-        // Build lookup of element IDs to types
         $email_ids = array();
         foreach ( $elements as $el ) {
             if ( 'question' === $el['type'] && 'email' === ( $el['input_type'] ?? '' ) ) {
@@ -131,7 +238,7 @@ class Formularios_Emails {
     private function parse_email_list( $text ) {
         if ( empty( $text ) ) return array();
 
-        $lines = preg_split( '/[\r\n,]+/', $text );
+        $lines  = preg_split( '/[\r\n,]+/', $text );
         $emails = array();
         foreach ( $lines as $line ) {
             $email = trim( $line );
@@ -143,24 +250,24 @@ class Formularios_Emails {
     }
 
     /**
-     * Send an HTML email using wp_mail.
+     * Send an HTML email using wp_mail with optional attachments.
      *
      * Wrapped in try-catch to prevent fatal errors from third-party
      * mailer plugins (e.g. WP Mail SMTP) from killing the request.
      */
-    private function send_html_email( $to, $subject, $body ) {
+    private function send_html_email( $to, $subject, $body, $attachments = array() ) {
         $headers = array(
             'Content-Type: text/html; charset=UTF-8',
         );
 
-        $site_name = get_bloginfo( 'name' );
+        $site_name   = get_bloginfo( 'name' );
         $admin_email = get_option( 'admin_email' );
         if ( $site_name && $admin_email ) {
             $headers[] = 'From: ' . $site_name . ' <' . $admin_email . '>';
         }
 
         try {
-            wp_mail( $to, $subject, $body, $headers );
+            wp_mail( $to, $subject, $body, $headers, $attachments );
         } catch ( \Throwable $e ) {
             error_log( 'Formularios: wp_mail() failed — ' . $e->getMessage() );
         }

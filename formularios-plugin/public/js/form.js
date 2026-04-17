@@ -14,9 +14,12 @@
         var currentSection = 1;
         var totalSections = $sections.length;
         var i18n = (typeof formulariosFront !== 'undefined' && formulariosFront.i18n) ? formulariosFront.i18n : {};
-        var captchaEnabled = formulariosFront.captcha_enabled || false;
-        var captchaSiteKey = formulariosFront.captcha_site_key || '';
-        var hasFileUpload = formulariosFront.has_file_upload || false;
+        var captchaEnabled   = formulariosFront.captcha_enabled || false;
+        var captchaProvider  = formulariosFront.captcha_provider || 'recaptcha';
+        var captchaSiteKey   = formulariosFront.captcha_site_key || '';
+        var hasFileUpload    = formulariosFront.has_file_upload || false;
+        var turnstileWidgetId       = null;
+        var turnstilePendingCallback = null;
 
         // Parse branching data
         var branchingMap = {};
@@ -36,6 +39,10 @@
         if (hasSections) {
             updateProgress();
             updateNavButtons();
+        }
+
+        if (captchaEnabled && captchaProvider === 'turnstile' && captchaSiteKey) {
+            initTurnstileWidget();
         }
 
         // Next button
@@ -86,11 +93,16 @@
             var $submitBtn = $form.find('.fm-btn-submit');
             $submitBtn.prop('disabled', true).text(i18n.sending || 'Enviando...');
 
-            // If captcha is enabled, get token first
             if (captchaEnabled && captchaSiteKey) {
-                getCaptchaToken(function(token) {
-                    submitForm(token);
-                });
+                if (captchaProvider === 'turnstile') {
+                    getTurnstileToken(function(token) {
+                        submitForm(token);
+                    });
+                } else {
+                    getCaptchaToken(function(token) {
+                        submitForm(token);
+                    });
+                }
             } else {
                 submitForm('');
             }
@@ -128,6 +140,82 @@
             } catch(e) {
                 callback('');
             }
+        }
+
+        function initTurnstileWidget() {
+            var container = document.getElementById('fm-turnstile-' + $wrap.attr('data-form-id'));
+            if (!container) return;
+            if (typeof turnstile !== 'undefined') {
+                renderTurnstileWidget(container);
+                return;
+            }
+            var attempts = 0;
+            var poll = setInterval(function() {
+                attempts++;
+                if (typeof turnstile !== 'undefined') {
+                    clearInterval(poll);
+                    renderTurnstileWidget(container);
+                } else if (attempts >= 100) {
+                    clearInterval(poll);
+                }
+            }, 100);
+        }
+
+        function renderTurnstileWidget(container) {
+            turnstileWidgetId = turnstile.render(container, {
+                sitekey: captchaSiteKey,
+                size: 'invisible',
+                execution: 'execute',
+                callback: function(token) {
+                    if (turnstilePendingCallback) {
+                        var cb = turnstilePendingCallback;
+                        turnstilePendingCallback = null;
+                        cb(token || '');
+                    }
+                },
+                'error-callback': function() {
+                    if (turnstilePendingCallback) {
+                        var cb = turnstilePendingCallback;
+                        turnstilePendingCallback = null;
+                        cb('');
+                    }
+                },
+                'expired-callback': function() {
+                    if (turnstileWidgetId !== null) {
+                        try { turnstile.reset(turnstileWidgetId); } catch(e) {}
+                    }
+                }
+            });
+        }
+
+        function getTurnstileToken(callback) {
+            if (typeof turnstile === 'undefined') {
+                var attempts = 0;
+                var poll = setInterval(function() {
+                    attempts++;
+                    if (typeof turnstile !== 'undefined') {
+                        clearInterval(poll);
+                        executeTurnstile(callback);
+                    } else if (attempts >= 50) {
+                        clearInterval(poll);
+                        callback('');
+                    }
+                }, 100);
+                return;
+            }
+            executeTurnstile(callback);
+        }
+
+        function executeTurnstile(callback) {
+            var container = document.getElementById('fm-turnstile-' + $wrap.attr('data-form-id'));
+            if (!container) { callback(''); return; }
+            turnstilePendingCallback = callback;
+            if (turnstileWidgetId === null) {
+                renderTurnstileWidget(container);
+            } else {
+                try { turnstile.reset(turnstileWidgetId); } catch(e) {}
+            }
+            try { turnstile.execute(turnstileWidgetId); } catch(e) { callback(''); }
         }
 
         function submitForm(captchaToken) {

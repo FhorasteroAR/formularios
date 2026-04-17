@@ -70,17 +70,28 @@ class Formularios_Renderer {
             );
         }
 
-        $captcha_enabled = Formularios_Captcha::is_enabled();
+        $captcha_enabled  = Formularios_Captcha::is_enabled();
+        $captcha_provider = $captcha_enabled ? Formularios_Captcha::get_provider() : '';
         $captcha_site_key = $captcha_enabled ? Formularios_Captcha::get_site_key() : '';
 
         if ( $captcha_enabled ) {
-            wp_enqueue_script(
-                'google-recaptcha',
-                'https://www.google.com/recaptcha/api.js?render=' . urlencode( $captcha_site_key ),
-                array(),
-                null,
-                true
-            );
+            if ( 'turnstile' === $captcha_provider ) {
+                wp_enqueue_script(
+                    'cloudflare-turnstile',
+                    'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit',
+                    array(),
+                    null,
+                    true
+                );
+            } else {
+                wp_enqueue_script(
+                    'google-recaptcha',
+                    'https://www.google.com/recaptcha/api.js?render=' . urlencode( $captcha_site_key ),
+                    array(),
+                    null,
+                    true
+                );
+            }
         }
 
         // Check if form has file upload fields
@@ -96,6 +107,7 @@ class Formularios_Renderer {
             'ajax_url'          => admin_url( 'admin-ajax.php' ),
             'nonce'             => wp_create_nonce( 'formularios_submit' ),
             'captcha_enabled'   => $captcha_enabled,
+            'captcha_provider'  => $captcha_provider,
             'captcha_site_key'  => $captcha_site_key,
             'has_file_upload'   => $has_file_upload,
             'i18n'              => array(
@@ -229,6 +241,10 @@ class Formularios_Renderer {
                     echo '</div>'; // close last section
                 }
                 ?>
+
+                <?php if ( $captcha_enabled && 'turnstile' === $captcha_provider ) : ?>
+                    <div id="fm-turnstile-<?php echo esc_attr( $form_id ); ?>" class="fm-turnstile-widget"></div>
+                <?php endif; ?>
 
                 <?php if ( $has_sections ) : ?>
                     <div class="fm-nav-buttons">

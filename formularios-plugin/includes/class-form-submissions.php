@@ -88,8 +88,8 @@ class Formularios_Submissions {
             if ( 'file' !== $el['input_type'] && ! empty( $el['required'] ) ) {
                 $empty = is_array( $value ) ? empty( $value ) : '' === trim( $value );
                 if ( $empty ) {
-                    $label = $el['label'] ?: 'Este campo';
-                    $errors[ $name ] = sprintf( '%s es obligatorio.', $label );
+                    $custom_msg = $el['custom_required_message'] ?? '';
+                    $errors[ $name ] = '' !== $custom_msg ? $custom_msg : sprintf( '%s es obligatorio.', $el['label'] ?: 'Este campo' );
                 }
             }
 
@@ -210,8 +210,8 @@ class Formularios_Submissions {
         // $_FILES with name="field[]" stores arrays for each property
         if ( empty( $_FILES[ $name ] ) || ! is_array( $_FILES[ $name ]['name'] ) ) {
             if ( ! empty( $el['required'] ) ) {
-                $label = $el['label'] ?: 'Este campo';
-                $errors[ $name ] = sprintf( '%s es obligatorio.', $label );
+                $custom_msg = $el['custom_required_message'] ?? '';
+                $errors[ $name ] = '' !== $custom_msg ? $custom_msg : sprintf( '%s es obligatorio.', $el['label'] ?: 'Este campo' );
             }
             return '';
         }
@@ -230,8 +230,8 @@ class Formularios_Submissions {
 
         if ( $all_empty ) {
             if ( ! empty( $el['required'] ) ) {
-                $label = $el['label'] ?: 'Este campo';
-                $errors[ $name ] = sprintf( '%s es obligatorio.', $label );
+                $custom_msg = $el['custom_required_message'] ?? '';
+                $errors[ $name ] = '' !== $custom_msg ? $custom_msg : sprintf( '%s es obligatorio.', $el['label'] ?: 'Este campo' );
             }
             return '';
         }

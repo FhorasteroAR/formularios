@@ -330,6 +330,8 @@ class Formularios_Renderer {
         $required = ! empty( $el['required'] );
         $req_attr = $required ? ' required' : '';
         $req_mark = $required ? ' <span class="fm-required">*</span>' : '';
+        $custom_req_msg = $el['custom_required_message'] ?? '';
+        $req_msg_attr = ( $required && '' !== $custom_req_msg ) ? ' data-required-msg="' . esc_attr( $custom_req_msg ) . '"' : '';
         $name = 'fm_field_' . sanitize_key( $el['id'] );
         $layout = $el['layout'] ?? 'full';
         $layout_class = 'full' !== $layout && 'custom' !== $layout ? ' fm-field-' . esc_attr( $layout ) : '';
@@ -339,7 +341,7 @@ class Formularios_Renderer {
             $inline_style = ' style="flex:0 0 ' . esc_attr( $el['custom_width'] ) . ';max-width:' . esc_attr( $el['custom_width'] ) . '"';
         }
         ?>
-        <div class="fm-field<?php echo $layout_class; ?>"<?php echo $inline_style; ?> data-type="<?php echo esc_attr( $el['input_type'] ); ?>">
+        <div class="fm-field<?php echo $layout_class; ?>"<?php echo $inline_style; ?><?php echo $req_msg_attr; ?> data-type="<?php echo esc_attr( $el['input_type'] ); ?>">
             <?php if ( ! empty( $el['label'] ) ) : ?>
                 <label class="fm-label"><?php echo esc_html( $el['label'] ); ?><?php echo $req_mark; ?></label>
             <?php endif; ?>

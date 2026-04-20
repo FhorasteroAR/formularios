@@ -101,6 +101,16 @@
             updateElementData(id, field, value);
         });
 
+        // Toggle custom required message input visibility
+        $('#formularios-elements-list').on('change', '.fm-required-checkbox', function() {
+            var $row = $(this).closest('.fm-element-body').find('.fm-custom-required-msg-row');
+            if ($(this).is(':checked')) {
+                $row.slideDown(150);
+            } else {
+                $row.slideUp(150);
+            }
+        });
+
         // Add option
         $('#formularios-elements-list').on('click', '.fm-add-option-btn', function() {
             var $el = $(this).closest('.fm-element');
@@ -212,6 +222,7 @@
                     label: '',
                     input_type: 'text',
                     required: false,
+                    custom_required_message: '',
                     placeholder: '',
                     layout: 'full',
                     custom_width: '',
@@ -346,7 +357,10 @@
                 }
                 html += '</select>';
                 html += '<input type="text" class="fm-input fm-data-input" data-field="placeholder" value="' + escAttr(el.placeholder) + '" placeholder="' + escAttr(formularios.i18n.placeholder_txt) + '" style="flex:1" />';
-                html += '<label class="fm-required-toggle"><input type="checkbox" class="fm-data-input" data-field="required"' + (el.required ? ' checked' : '') + ' /> ' + formularios.i18n.required + '</label>';
+                html += '<label class="fm-required-toggle"><input type="checkbox" class="fm-data-input fm-required-checkbox" data-field="required"' + (el.required ? ' checked' : '') + ' /> ' + formularios.i18n.required + '</label>';
+                html += '</div>';
+                html += '<div class="fm-custom-required-msg-row" style="' + (el.required ? '' : 'display:none') + '">';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="custom_required_message" value="' + escAttr(el.custom_required_message || '') + '" placeholder="Mensaje de error personalizado (ej: Por favor completa este campo)" />';
                 html += '</div>';
 
                 // Layout & width selector

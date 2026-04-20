@@ -326,7 +326,12 @@ class Formularios_Builder {
                     $item['label']          = sanitize_text_field( $el['label'] ?? '' );
                     $item['input_type']     = sanitize_text_field( $el['input_type'] ?? 'text' );
                     $item['required']       = ! empty( $el['required'] );
-                    $item['custom_required_message'] = sanitize_text_field( $el['custom_required_message'] ?? '' );
+                    $item['custom_required_message']       = sanitize_text_field( $el['custom_required_message'] ?? '' );
+                    $item['custom_email_error']            = sanitize_text_field( $el['custom_email_error'] ?? '' );
+                    $item['custom_email_mismatch_error']   = sanitize_text_field( $el['custom_email_mismatch_error'] ?? '' );
+                    $item['custom_number_error']           = sanitize_text_field( $el['custom_number_error'] ?? '' );
+                    $item['custom_file_size_error']        = sanitize_text_field( $el['custom_file_size_error'] ?? '' );
+                    $item['custom_file_type_error']        = sanitize_text_field( $el['custom_file_type_error'] ?? '' );
                     $item['placeholder']    = sanitize_text_field( $el['placeholder'] ?? '' );
                     $allowed_layouts        = array( 'full', 'half', 'third', 'quarter', 'two_thirds', 'custom' );
                     $item['layout']         = in_array( $el['layout'] ?? '', $allowed_layouts, true ) ? $el['layout'] : 'full';

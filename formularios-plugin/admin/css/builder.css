@@ -723,10 +723,21 @@
     margin-top: 6px;
 }
 
-.fm-custom-required-msg-row .fm-input {
+.fm-custom-required-msg-row .fm-input,
+.fm-email-validation-msgs .fm-input,
+.fm-number-validation-msgs .fm-input,
+.fm-file-validation-msgs .fm-input {
     width: 100%;
     font-size: 13px;
     color: var(--fm-gray-600);
+}
+
+.fm-email-validation-msgs,
+.fm-number-validation-msgs,
+.fm-file-validation-msgs {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--fm-gray-100);
 }
 
 /* Layout options wrap */

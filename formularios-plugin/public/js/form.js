@@ -584,7 +584,8 @@
                     var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     if (!emailRegex.test(value)) {
                         $field.addClass('has-error');
-                        $errorMsg.text(i18n.email_error || 'Ingresa un email valido.').show();
+                        var emailErr = $field.attr('data-email-error');
+                        $errorMsg.text(emailErr || i18n.email_error || 'Ingresa un email valido.').show();
                         valid = false;
                     } else {
                         // Check email confirmation match
@@ -594,11 +595,13 @@
                             var confirmVal = $confirm.val().trim();
                             if (confirmVal === '' && isRequired) {
                                 $field.addClass('has-error');
-                                $matchError.text(i18n.email_confirm_required || 'Confirma tu email.').show();
+                                var mismatchErr = $field.attr('data-email-mismatch-error');
+                                $matchError.text(mismatchErr || i18n.email_confirm_required || 'Confirma tu email.').show();
                                 valid = false;
                             } else if (confirmVal !== '' && value.toLowerCase() !== confirmVal.toLowerCase()) {
                                 $field.addClass('has-error');
-                                $matchError.text(i18n.email_mismatch || 'Los emails no coinciden.').show();
+                                var mismatchErr2 = $field.attr('data-email-mismatch-error');
+                                $matchError.text(mismatchErr2 || i18n.email_mismatch || 'Los emails no coinciden.').show();
                                 valid = false;
                             }
                         }
@@ -619,13 +622,26 @@
 
                 var maxSize = parseInt($input.attr('data-max-size') || '5', 10);
                 var maxBytes = maxSize * 1024 * 1024;
+                var accept = $input.attr('accept') || '';
+                var acceptList = accept ? accept.toLowerCase().split(',').map(function(s) { return s.trim(); }) : [];
 
                 for (var i = 0; i < this.files.length; i++) {
                     if (this.files[i].size > maxBytes) {
                         $field.addClass('has-error');
-                        $errorMsg.text('"' + this.files[i].name + '" ' + (i18n.file_too_large || 'es demasiado grande.') + ' Max: ' + maxSize + ' MB').show();
+                        var sizeErr = $field.attr('data-file-size-error');
+                        $errorMsg.text(sizeErr || '"' + this.files[i].name + '" ' + (i18n.file_too_large || 'es demasiado grande.') + ' Max: ' + maxSize + ' MB').show();
                         valid = false;
-                        return false; // break .each
+                        return false;
+                    }
+                    if (acceptList.length) {
+                        var ext = '.' + this.files[i].name.split('.').pop().toLowerCase();
+                        if (acceptList.indexOf(ext) === -1) {
+                            $field.addClass('has-error');
+                            var typeErr = $field.attr('data-file-type-error');
+                            $errorMsg.text(typeErr || (i18n.file_type_err || 'Tipo de archivo no permitido.') + ' ' + this.files[i].name).show();
+                            valid = false;
+                            return false;
+                        }
                     }
                 }
             });

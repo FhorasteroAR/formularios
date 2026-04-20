@@ -95,7 +95,8 @@ class Formularios_Submissions {
 
             // Validate email
             if ( 'email' === $el['input_type'] && '' !== $value && ! is_email( $value ) ) {
-                $errors[ $name ] = 'Ingresa una direccion de email valida.';
+                $custom = $el['custom_email_error'] ?? '';
+                $errors[ $name ] = '' !== $custom ? $custom : 'Ingresa una direccion de email valida.';
             }
 
             // Validate email confirmation
@@ -103,7 +104,8 @@ class Formularios_Submissions {
                 $confirm_key = $name . '_confirm';
                 $confirm_val = isset( $_POST[ $confirm_key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $confirm_key ] ) ) : '';
                 if ( strtolower( $value ) !== strtolower( $confirm_val ) ) {
-                    $errors[ $name ] = 'Los emails no coinciden.';
+                    $custom = $el['custom_email_mismatch_error'] ?? '';
+                    $errors[ $name ] = '' !== $custom ? $custom : 'Los emails no coinciden.';
                 }
             }
 
@@ -132,7 +134,8 @@ class Formularios_Submissions {
             // Sanitize number type
             if ( 'number' === $el['input_type'] && '' !== $value ) {
                 if ( ! is_numeric( $value ) ) {
-                    $errors[ $name ] = 'Ingresa un numero valido.';
+                    $custom = $el['custom_number_error'] ?? '';
+                    $errors[ $name ] = '' !== $custom ? $custom : 'Ingresa un numero valido.';
                 }
             }
 
@@ -270,7 +273,8 @@ class Formularios_Submissions {
 
             // Validate file size
             if ( $file['size'] > $max_bytes ) {
-                $errors[ $name ] = sprintf( 'El archivo "%s" excede el tamano maximo de %d MB.', $file['name'], $max_size );
+                $custom = $el['custom_file_size_error'] ?? '';
+                $errors[ $name ] = '' !== $custom ? $custom : sprintf( 'El archivo "%s" excede el tamano maximo de %d MB.', $file['name'], $max_size );
                 return $urls;
             }
 
@@ -278,7 +282,8 @@ class Formularios_Submissions {
             if ( ! empty( $accepted ) ) {
                 $ext = strtolower( '.' . pathinfo( $file['name'], PATHINFO_EXTENSION ) );
                 if ( ! in_array( $ext, $accepted, true ) ) {
-                    $errors[ $name ] = sprintf( 'Tipo de archivo no permitido: %s', $file['name'] );
+                    $custom = $el['custom_file_type_error'] ?? '';
+                    $errors[ $name ] = '' !== $custom ? $custom : sprintf( 'Tipo de archivo no permitido: %s', $file['name'] );
                     return $urls;
                 }
             }
@@ -286,7 +291,8 @@ class Formularios_Submissions {
             // WordPress file type checking
             $check = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'] );
             if ( ! $check['type'] ) {
-                $errors[ $name ] = sprintf( 'Tipo de archivo no permitido: %s', $file['name'] );
+                $custom = $el['custom_file_type_error'] ?? '';
+                $errors[ $name ] = '' !== $custom ? $custom : sprintf( 'Tipo de archivo no permitido: %s', $file['name'] );
                 return $urls;
             }
 

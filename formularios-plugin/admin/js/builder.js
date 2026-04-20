@@ -223,6 +223,11 @@
                     input_type: 'text',
                     required: false,
                     custom_required_message: '',
+                    custom_email_error: '',
+                    custom_email_mismatch_error: '',
+                    custom_number_error: '',
+                    custom_file_size_error: '',
+                    custom_file_type_error: '',
                     placeholder: '',
                     layout: 'full',
                     custom_width: '',
@@ -417,6 +422,27 @@
                 html += '</div>';
                 html += '</div>';
                 html += '</div>';
+
+                // Type-specific custom validation messages
+                var showEmail = (el.input_type === 'email');
+                html += '<div class="fm-email-validation-msgs" style="' + (showEmail ? '' : 'display:none') + '">';
+                html += '<label class="fm-input-label">Mensajes de error personalizados (email)</label>';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="custom_email_error" value="' + escAttr(el.custom_email_error || '') + '" placeholder="Email invalido (ej: Ingresa un correo electronico valido)" />';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="custom_email_mismatch_error" value="' + escAttr(el.custom_email_mismatch_error || '') + '" placeholder="Emails no coinciden (ej: Ambos emails deben ser iguales)" style="margin-top:6px" />';
+                html += '</div>';
+
+                var showNumber = (el.input_type === 'number');
+                html += '<div class="fm-number-validation-msgs" style="' + (showNumber ? '' : 'display:none') + '">';
+                html += '<label class="fm-input-label">Mensaje de error personalizado (numero)</label>';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="custom_number_error" value="' + escAttr(el.custom_number_error || '') + '" placeholder="Numero invalido (ej: Solo se permiten valores numericos)" />';
+                html += '</div>';
+
+                var showFileMsg = (el.input_type === 'file');
+                html += '<div class="fm-file-validation-msgs" style="' + (showFileMsg ? '' : 'display:none') + '">';
+                html += '<label class="fm-input-label">Mensajes de error personalizados (archivo)</label>';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="custom_file_size_error" value="' + escAttr(el.custom_file_size_error || '') + '" placeholder="Archivo demasiado grande (ej: El archivo supera el limite permitido)" />';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="custom_file_type_error" value="' + escAttr(el.custom_file_type_error || '') + '" placeholder="Tipo no permitido (ej: Solo se aceptan imagenes y PDFs)" style="margin-top:6px" />';
+                html += '</div>';
                 break;
 
             case 'title_desc':
@@ -538,6 +564,15 @@
         } else {
             $fileArea.slideUp(200);
         }
+
+        // Type-specific validation messages
+        var $emailMsgs = $el.find('.fm-email-validation-msgs');
+        var $numberMsgs = $el.find('.fm-number-validation-msgs');
+        var $fileMsgs = $el.find('.fm-file-validation-msgs');
+
+        $emailMsgs[inputType === 'email' ? 'slideDown' : 'slideUp'](200);
+        $numberMsgs[inputType === 'number' ? 'slideDown' : 'slideUp'](200);
+        $fileMsgs[inputType === 'file' ? 'slideDown' : 'slideUp'](200);
     }
 
     // --- Media ---

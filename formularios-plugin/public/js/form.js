@@ -573,7 +573,8 @@
 
                 if (value.trim() === '') {
                     $field.addClass('has-error');
-                    $errorMsg.text(i18n.required_error || 'Este campo es obligatorio.').show();
+                    var customMsg = $field.attr('data-required-msg');
+                    $errorMsg.text(customMsg || i18n.required_error || 'Este campo es obligatorio.').show();
                     valid = false;
                     return;
                 }

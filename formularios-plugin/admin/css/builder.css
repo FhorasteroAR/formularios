@@ -719,6 +719,16 @@
     white-space: nowrap;
 }
 
+.fm-custom-required-msg-row {
+    margin-top: 6px;
+}
+
+.fm-custom-required-msg-row .fm-input {
+    width: 100%;
+    font-size: 13px;
+    color: var(--fm-gray-600);
+}
+
 /* Layout options wrap */
 .fm-layout-options {
     display: flex;

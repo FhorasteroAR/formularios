@@ -446,6 +446,10 @@
     border-color: var(--fm-red);
 }
 
+.fm-field.has-error .fm-choice {
+    border-color: var(--fm-red);
+}
+
 .fm-field.has-error .fm-error-msg {
     display: block;
 }

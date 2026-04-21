@@ -550,7 +550,7 @@
                 var $field = $(this);
                 var $control = $field.find('.fm-control');
                 var $errorMsg = $field.find('.fm-error-msg');
-                var isRequired = $control.is('[required]') || $field.find('input[required]').length > 0;
+                var isRequired = $field.attr('data-required') === '1';
 
                 $field.removeClass('has-error');
                 $errorMsg.hide().text('');

@@ -332,7 +332,8 @@ class Formularios_Renderer {
         $req_mark = $required ? ' <span class="fm-required">*</span>' : '';
         $custom_req_msg = $el['custom_required_message'] ?? '';
         $req_msg_attr = ( $required && '' !== $custom_req_msg ) ? ' data-required-msg="' . esc_attr( $custom_req_msg ) . '"' : '';
-        $data_attrs = $req_msg_attr;
+        $data_attrs = $required ? ' data-required="1"' : '';
+        $data_attrs .= $req_msg_attr;
         if ( '' !== ( $el['custom_email_error'] ?? '' ) ) {
             $data_attrs .= ' data-email-error="' . esc_attr( $el['custom_email_error'] ) . '"';
         }

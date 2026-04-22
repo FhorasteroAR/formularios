@@ -314,6 +314,23 @@ class Formularios_Dashboard {
                         <span class="spinner is-active" style="float:none;margin:0"></span>
                     </span>
                 </div>
+                <div class="fm-export-dropdown fm-dash-export-all">
+                    <button type="button" class="fm-export-trigger">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Exportar todo
+                        <svg class="fm-export-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="fm-export-menu">
+                        <button type="button" class="fm-export-option" id="fm-export-all-csv">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                            <span class="fm-export-option-text"><strong>CSV</strong><small>Todas las estadisticas</small></span>
+                        </button>
+                        <button type="button" class="fm-export-option" id="fm-export-all-pdf">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15v-2a1 1 0 0 1 1-1h1a1 1 0 0 1 0 2H9"/></svg>
+                            <span class="fm-export-option-text"><strong>PDF</strong><small>Reporte completo con graficos</small></span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Summary Cards -->
@@ -376,6 +393,7 @@ class Formularios_Dashboard {
                 <table class="wp-list-table widefat fixed striped fm-dash-table">
                     <thead>
                         <tr>
+                            <th class="fm-dtcol-check"><input type="checkbox" id="fm-dash-select-all" title="Seleccionar todos"></th>
                             <th class="fm-dtcol-name">Formulario</th>
                             <th class="fm-dtcol-stat">En rango</th>
                             <th class="fm-dtcol-stat">Esta semana</th>

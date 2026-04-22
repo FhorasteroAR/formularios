@@ -2,6 +2,7 @@
     'use strict';
 
     var chartInstance = null;
+    var lastDashboardData = null;
 
     $(document).ready(function() {
         if (typeof fmDashboard === 'undefined') return;
@@ -16,6 +17,7 @@
     });
 
     function renderAll(data) {
+        lastDashboardData = data;
         renderStats(data);
         renderChart(data);
         renderTable(data);
@@ -223,7 +225,7 @@
     function renderTable(data) {
         var forms = data.forms;
         if (!forms || forms.length === 0) {
-            $('#fm-dash-table-body').html('<tr><td colspan="7" class="fm-dash-empty">No hay formularios creados.</td></tr>');
+            $('#fm-dash-table-body').html('<tr><td colspan="8" class="fm-dash-empty">No hay formularios creados.</td></tr>');
             return;
         }
 
@@ -246,6 +248,7 @@
                 : '<span class="fm-dash-no-data">Sin respuestas</span>';
 
             html += '<tr>';
+            html += '<td class="fm-dtcol-check"><input type="checkbox" class="fm-dash-form-check" value="' + f.id + '"></td>';
             html += '<td><span class="fm-dash-form-name">' + escHtml(f.title) + '</span><span class="fm-dash-form-id">#' + f.id + '</span></td>';
             html += '<td class="fm-dtcol-stat">' + f.total + '</td>';
             html += '<td class="fm-dtcol-stat">' + f.this_week + '</td>';
@@ -260,6 +263,7 @@
         });
 
         $('#fm-dash-table-body').html(html);
+        $('#fm-dash-select-all').prop('checked', false);
     }
 
     // --- Field Stats ---
@@ -507,6 +511,296 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+
+    // --- Select All / Form Checkboxes ---
+
+    $(document).on('change', '#fm-dash-select-all', function() {
+        var checked = $(this).is(':checked');
+        $('.fm-dash-form-check').prop('checked', checked);
+        updateExportLabel();
+    });
+
+    $(document).on('change', '.fm-dash-form-check', function() {
+        var total = $('.fm-dash-form-check').length;
+        var checked = $('.fm-dash-form-check:checked').length;
+        $('#fm-dash-select-all').prop('checked', total > 0 && checked === total);
+        updateExportLabel();
+    });
+
+    function updateExportLabel() {
+        var checked = $('.fm-dash-form-check:checked').length;
+        var label = checked > 0 ? 'Exportar (' + checked + ')' : 'Exportar todo';
+        $('.fm-dash-export-all .fm-export-trigger').contents().filter(function() {
+            return this.nodeType === 3 && $.trim(this.nodeValue).length > 0;
+        }).first().replaceWith(' ' + label + ' ');
+    }
+
+    function getSelectedFormIds() {
+        var ids = [];
+        $('.fm-dash-form-check:checked').each(function() {
+            ids.push(parseInt($(this).val(), 10));
+        });
+        return ids;
+    }
+
+    function filterDataByForms(data, formIds) {
+        if (!formIds || formIds.length === 0) return data;
+        var filtered = $.extend(true, {}, data);
+        filtered.forms = (data.forms || []).filter(function(f) { return formIds.indexOf(f.id) !== -1; });
+        filtered.form_timelines = (data.form_timelines || []).filter(function(ft) { return formIds.indexOf(ft.id) !== -1; });
+        filtered.field_stats = (data.field_stats || []).filter(function(fs) { return formIds.indexOf(fs.form_id) !== -1; });
+        return filtered;
+    }
+
+    // --- Export All CSV ---
+
+    $(document).on('click', '#fm-export-all-csv', function() {
+        $('.fm-export-dropdown').removeClass('open');
+        if (!lastDashboardData) return;
+        exportAllCSV();
+    });
+
+    function exportAllCSV() {
+        var formIds = getSelectedFormIds();
+        var data = filterDataByForms(lastDashboardData, formIds);
+        var rows = [];
+
+        // Section 1: Summary
+        rows.push(['=== RESUMEN GENERAL ===']);
+        rows.push(['Metrica', 'Valor']);
+        rows.push(['Respuestas totales', lastDashboardData.total]);
+        rows.push(['Hoy', lastDashboardData.total_today]);
+        rows.push(['Esta semana', lastDashboardData.total_week]);
+        rows.push(['En el rango', lastDashboardData.range_total]);
+        rows.push(['Rango', (lastDashboardData.date_from || '') + ' a ' + (lastDashboardData.date_to || '')]);
+        rows.push(['Formularios', lastDashboardData.form_count]);
+        if (formIds.length > 0) {
+            rows.push(['Formularios seleccionados', formIds.length]);
+        }
+        rows.push([]);
+
+        // Section 2: Per-form performance
+        rows.push(['=== RENDIMIENTO POR FORMULARIO ===']);
+        rows.push(['Formulario', 'ID', 'En rango', 'Esta semana', 'Prom. diario', 'Distribucion %', 'Ultima respuesta', 'Estado']);
+
+        var rangeTotal = parseInt(data.range_total, 10) || 0;
+        var rangeDays = 1;
+        if (data.date_from && data.date_to) {
+            rangeDays = Math.max(1, Math.round((new Date(data.date_to) - new Date(data.date_from)) / 86400000));
+        }
+
+        (data.forms || []).forEach(function(f) {
+            var pct = rangeTotal > 0 ? ((f.total / rangeTotal) * 100).toFixed(1) + '%' : '0%';
+            var avg = f.total > 0 ? (f.total / rangeDays).toFixed(1) : '0';
+            var statusLabel = { publish: 'Activo', draft: 'Borrador', private: 'Privado' };
+            rows.push([f.title, f.id, f.total, f.this_week, avg, pct, f.last_submission || 'Sin respuestas', statusLabel[f.status] || f.status]);
+        });
+        rows.push([]);
+
+        // Section 3: Timeline
+        rows.push(['=== LINEA DE TIEMPO ===']);
+        var timelineHeader = ['Fecha', 'Total'];
+        (data.form_timelines || []).forEach(function(ft) {
+            timelineHeader.push(ft.title);
+        });
+        rows.push(timelineHeader);
+
+        var labels = lastDashboardData.timeline_labels || [];
+        var totalData = lastDashboardData.timeline_data || [];
+        labels.forEach(function(date, i) {
+            var row = [date, totalData[i] || 0];
+            (data.form_timelines || []).forEach(function(ft) {
+                row.push(ft.data[i] || 0);
+            });
+            rows.push(row);
+        });
+        rows.push([]);
+
+        // Section 4: Field stats
+        var fieldStats = data.field_stats || [];
+        if (fieldStats.length > 0) {
+            rows.push(['=== ESTADISTICAS POR CAMPO ===']);
+            rows.push(['Formulario', 'Campo', 'Tipo', 'Respuestas', 'Valores unicos', 'Promedio', 'Valor', 'Cantidad', 'Porcentaje']);
+
+            fieldStats.forEach(function(formGroup) {
+                formGroup.fields.forEach(function(field) {
+                    var topValues = field.top_values;
+                    var keys = topValues && typeof topValues === 'object' ? Object.keys(topValues) : [];
+
+                    if (keys.length === 0) {
+                        rows.push([
+                            formGroup.form_title, field.label, field.input_type,
+                            field.total, field.unique,
+                            field.numeric_avg !== null && field.numeric_avg !== undefined ? field.numeric_avg : '',
+                            '', '', ''
+                        ]);
+                    } else {
+                        keys.forEach(function(val, j) {
+                            var count = topValues[val];
+                            var pct = field.total > 0 ? ((count / field.total) * 100).toFixed(1) + '%' : '0%';
+                            rows.push([
+                                j === 0 ? formGroup.form_title : '',
+                                j === 0 ? field.label : '',
+                                j === 0 ? field.input_type : '',
+                                j === 0 ? field.total : '',
+                                j === 0 ? field.unique : '',
+                                j === 0 ? (field.numeric_avg !== null && field.numeric_avg !== undefined ? field.numeric_avg : '') : '',
+                                val, count, pct
+                            ]);
+                        });
+                    }
+                });
+            });
+        }
+
+        downloadCSV(rows, 'estadisticas-completas');
+    }
+
+    // --- Export All PDF ---
+
+    $(document).on('click', '#fm-export-all-pdf', function() {
+        $('.fm-export-dropdown').removeClass('open');
+        if (!lastDashboardData) return;
+        exportAllPDF();
+    });
+
+    function exportAllPDF() {
+        var formIds = getSelectedFormIds();
+        var data = filterDataByForms(lastDashboardData, formIds);
+        var from = lastDashboardData.date_from || '';
+        var to = lastDashboardData.date_to || '';
+
+        var chartImage = '';
+        if (chartInstance && typeof chartInstance.toBase64Image === 'function') {
+            chartImage = chartInstance.toBase64Image();
+        }
+
+        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Reporte de Estadisticas</title>';
+        html += '<style>';
+        html += 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1F2937;max-width:960px;margin:0 auto;padding:40px 32px;font-size:13px;line-height:1.5}';
+        html += 'h1{font-size:22px;font-weight:700;margin:0 0 4px;color:#1F2937}';
+        html += 'h2{font-size:16px;font-weight:700;color:#1F2937;margin:32px 0 14px;padding-bottom:8px;border-bottom:2px solid #E5E7EB}';
+        html += '.period{font-size:12px;color:#6B7280;margin-bottom:28px}';
+        html += '.cards{display:flex;gap:16px;margin-bottom:28px;flex-wrap:wrap}';
+        html += '.card{flex:1;min-width:140px;padding:16px 20px;border:1px solid #E5E7EB;border-radius:10px;text-align:center}';
+        html += '.card-val{font-size:28px;font-weight:700;color:#4F46E5;display:block}';
+        html += '.card-label{font-size:11px;color:#6B7280;font-weight:500;text-transform:uppercase;letter-spacing:.5px}';
+        html += '.chart-img{width:100%;max-width:900px;margin:0 auto 28px;display:block;border:1px solid #E5E7EB;border-radius:10px}';
+        html += 'table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px}';
+        html += 'th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6B7280;padding:8px 10px;border-bottom:2px solid #E5E7EB;background:#F9FAFB}';
+        html += 'td{padding:8px 10px;border-bottom:1px solid #F3F4F6;color:#374151}';
+        html += '.text-center{text-align:center} .text-right{text-align:right} .fw-600{font-weight:600}';
+        html += '.status{display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;border-radius:12px;text-transform:uppercase}';
+        html += '.status-publish{background:#D1FAE5;color:#065F46} .status-draft{background:#FEF3C7;color:#92400E} .status-private{background:#E5E7EB;color:#374151}';
+        html += '.bar-track{height:6px;background:#F3F4F6;border-radius:99px;overflow:hidden;display:inline-block;width:80px;vertical-align:middle;margin-right:6px}';
+        html += '.bar-fill{height:100%;background:linear-gradient(90deg,#4F46E5,#818CF8);border-radius:99px}';
+        html += '.field-card{border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
+        html += '.field-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #F3F4F6}';
+        html += '.field-label{font-size:13px;font-weight:700;color:#1F2937} .field-type{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#9CA3AF;background:#F3F4F6;padding:2px 8px;border-radius:4px}';
+        html += '.metrics{display:flex;gap:20px;margin-bottom:10px}';
+        html += '.metric-val{font-size:18px;font-weight:700;color:#4F46E5} .metric-label{font-size:10px;color:#9CA3AF}';
+        html += '.form-title{font-size:15px;font-weight:700;color:#374151;margin:24px 0 10px;padding-bottom:6px;border-bottom:2px solid #E5E7EB}';
+        html += '.no-data{color:#9CA3AF;font-style:italic;text-align:center;padding:20px}';
+        html += '@media print{body{padding:20px} .page-break{page-break-before:always}}';
+        html += '</style></head><body>';
+
+        // Title
+        html += '<h1>Reporte de Estadisticas</h1>';
+        if (from && to) {
+            html += '<div class="period">Periodo: ' + escHtml(from) + ' — ' + escHtml(to);
+            if (formIds.length > 0) {
+                html += ' &nbsp;|&nbsp; ' + formIds.length + ' formulario' + (formIds.length !== 1 ? 's' : '') + ' seleccionado' + (formIds.length !== 1 ? 's' : '');
+            }
+            html += '</div>';
+        }
+
+        // Summary cards
+        html += '<h2>Resumen general</h2>';
+        html += '<div class="cards">';
+        html += '<div class="card"><span class="card-val">' + lastDashboardData.total + '</span><span class="card-label">Total</span></div>';
+        html += '<div class="card"><span class="card-val">' + lastDashboardData.total_today + '</span><span class="card-label">Hoy</span></div>';
+        html += '<div class="card"><span class="card-val">' + lastDashboardData.total_week + '</span><span class="card-label">Semana</span></div>';
+        html += '<div class="card"><span class="card-val">' + lastDashboardData.range_total + '</span><span class="card-label">En rango</span></div>';
+        html += '</div>';
+
+        // Chart image
+        if (chartImage) {
+            html += '<h2>Tendencia de respuestas</h2>';
+            html += '<img class="chart-img" src="' + chartImage + '" alt="Grafico de tendencia">';
+        }
+
+        // Per-form performance table
+        var forms = data.forms || [];
+        html += '<h2>Rendimiento por formulario</h2>';
+        if (forms.length === 0) {
+            html += '<p class="no-data">No hay formularios en la seleccion.</p>';
+        } else {
+            var rangeTotal = parseInt(data.range_total, 10) || 0;
+            var rangeDays = 1;
+            if (data.date_from && data.date_to) {
+                rangeDays = Math.max(1, Math.round((new Date(data.date_to) - new Date(data.date_from)) / 86400000));
+            }
+            html += '<table><thead><tr><th>Formulario</th><th class="text-center">En rango</th><th class="text-center">Semana</th><th class="text-center">Prom.</th><th>Distribucion</th><th>Ultima respuesta</th><th class="text-center">Estado</th></tr></thead><tbody>';
+            forms.forEach(function(f) {
+                var pct = rangeTotal > 0 ? ((f.total / rangeTotal) * 100).toFixed(1) : 0;
+                var avg = f.total > 0 ? (f.total / rangeDays).toFixed(1) : '0';
+                var statusLabel = { publish: 'Activo', draft: 'Borrador', private: 'Privado' };
+                html += '<tr>';
+                html += '<td class="fw-600">' + escHtml(f.title) + ' <small style="color:#9CA3AF">#' + f.id + '</small></td>';
+                html += '<td class="text-center fw-600">' + f.total + '</td>';
+                html += '<td class="text-center">' + f.this_week + '</td>';
+                html += '<td class="text-center">' + avg + '</td>';
+                html += '<td><span class="bar-track"><span class="bar-fill" style="width:' + pct + '%"></span></span>' + pct + '%</td>';
+                html += '<td style="font-size:11px;color:#6B7280">' + (f.last_submission ? escHtml(f.last_submission) : '<em>Sin respuestas</em>') + '</td>';
+                html += '<td class="text-center"><span class="status status-' + f.status + '">' + (statusLabel[f.status] || f.status) + '</span></td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        }
+
+        // Field stats
+        var fieldStats = data.field_stats || [];
+        if (fieldStats.length > 0) {
+            html += '<h2 class="page-break">Estadisticas por campo</h2>';
+            fieldStats.forEach(function(formGroup) {
+                html += '<div class="form-title">' + escHtml(formGroup.form_title) + '</div>';
+                formGroup.fields.forEach(function(field) {
+                    html += '<div class="field-card">';
+                    html += '<div class="field-header"><span class="field-label">' + escHtml(field.label) + '</span><span class="field-type">' + escHtml(field.input_type) + '</span></div>';
+                    html += '<div class="metrics">';
+                    html += '<div><div class="metric-val">' + field.total + '</div><div class="metric-label">Respuestas</div></div>';
+                    html += '<div><div class="metric-val">' + field.unique + '</div><div class="metric-label">Valores unicos</div></div>';
+                    if (field.numeric_avg !== null && field.numeric_avg !== undefined) {
+                        html += '<div><div class="metric-val">' + field.numeric_avg + '</div><div class="metric-label">Promedio</div></div>';
+                    }
+                    html += '</div>';
+
+                    var topValues = field.top_values;
+                    if (topValues && typeof topValues === 'object') {
+                        var keys = Object.keys(topValues);
+                        if (keys.length > 0) {
+                            var maxCount = topValues[keys[0]] || 1;
+                            html += '<table><thead><tr><th>Valor</th><th style="width:40%">Distribucion</th><th class="text-right">Cantidad</th><th class="text-right">%</th></tr></thead><tbody>';
+                            keys.forEach(function(val) {
+                                var count = topValues[val];
+                                var pctVal = field.total > 0 ? ((count / field.total) * 100).toFixed(1) : 0;
+                                var barW = maxCount > 0 ? ((count / maxCount) * 100) : 0;
+                                html += '<tr><td>' + escHtml(val) + '</td>';
+                                html += '<td><span class="bar-track" style="width:100%"><span class="bar-fill" style="width:' + barW + '%"></span></span></td>';
+                                html += '<td class="text-right fw-600">' + count + '</td>';
+                                html += '<td class="text-right" style="color:#9CA3AF">' + pctVal + '%</td></tr>';
+                            });
+                            html += '</tbody></table>';
+                        }
+                    }
+                    html += '</div>';
+                });
+            });
+        }
+
+        html += '</body></html>';
+        openPrintWindow(html);
     }
 
     // --- Helpers ---

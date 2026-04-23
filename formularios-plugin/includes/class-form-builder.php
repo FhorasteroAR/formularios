@@ -376,6 +376,22 @@ class Formularios_Builder {
                 case 'section':
                     $item['title']       = sanitize_text_field( $el['title'] ?? '' );
                     $item['description'] = sanitize_text_field( $el['description'] ?? '' );
+                    $cl = $el['conditional_logic'] ?? array();
+                    $item['conditional_logic'] = array(
+                        'enabled' => ! empty( $cl['enabled'] ),
+                        'match'   => in_array( $cl['match'] ?? '', array( 'any', 'all' ), true ) ? $cl['match'] : 'any',
+                        'rules'   => array(),
+                    );
+                    if ( ! empty( $cl['rules'] ) && is_array( $cl['rules'] ) ) {
+                        foreach ( $cl['rules'] as $rule ) {
+                            if ( empty( $rule['field_id'] ) ) continue;
+                            $item['conditional_logic']['rules'][] = array(
+                                'field_id' => sanitize_text_field( $rule['field_id'] ),
+                                'operator' => in_array( $rule['operator'] ?? '', array( 'is', 'is_not' ), true ) ? $rule['operator'] : 'is',
+                                'value'    => sanitize_text_field( $rule['value'] ?? '' ),
+                            );
+                        }
+                    }
                     break;
             }
 

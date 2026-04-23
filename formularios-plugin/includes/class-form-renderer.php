@@ -134,8 +134,10 @@ class Formularios_Renderer {
         // Build branching map: for each section, check if any radio/select field
         // has go_to_section options set
         $branching_map = array();
+        $conditions_map = array();
         if ( $has_sections ) {
             $branching_map = $this->build_branching_map( $elements );
+            $conditions_map = $this->build_conditions_map( $elements );
         }
 
         // Build CSS custom properties from settings
@@ -184,6 +186,9 @@ class Formularios_Renderer {
         <div class="formularios-form-wrap" data-form-id="<?php echo esc_attr( $form_id ); ?>" style="<?php echo $css_vars; ?>"
             <?php if ( ! empty( $branching_map ) ) : ?>
                 data-branching="<?php echo esc_attr( wp_json_encode( $branching_map ) ); ?>"
+            <?php endif; ?>
+            <?php if ( ! empty( $conditions_map ) ) : ?>
+                data-conditions="<?php echo esc_attr( wp_json_encode( $conditions_map ) ); ?>"
             <?php endif; ?>>
             <form class="formularios-form" method="post" novalidate<?php if ( $has_file_upload ) echo ' enctype="multipart/form-data"'; ?>>
                 <input type="hidden" name="formularios_form_id" value="<?php echo esc_attr( $form_id ); ?>" />
@@ -304,6 +309,36 @@ class Formularios_Renderer {
             if ( $has_branching ) {
                 $name = 'fm_field_' . sanitize_key( $el['id'] );
                 $map[ $name ] = $field_map;
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Build a conditions map: sectionId => { match, rules[] }
+     */
+    private function build_conditions_map( $elements ) {
+        $map = array();
+        foreach ( $elements as $el ) {
+            if ( 'section' !== $el['type'] ) continue;
+            $cl = $el['conditional_logic'] ?? array();
+            if ( empty( $cl['enabled'] ) || empty( $cl['rules'] ) ) continue;
+
+            $rules = array();
+            foreach ( $cl['rules'] as $rule ) {
+                if ( empty( $rule['field_id'] ) ) continue;
+                $rules[] = array(
+                    'field'    => 'fm_field_' . sanitize_key( $rule['field_id'] ),
+                    'operator' => $rule['operator'] ?? 'is',
+                    'value'    => $rule['value'] ?? '',
+                );
+            }
+
+            if ( ! empty( $rules ) ) {
+                $map[ $el['id'] ] = array(
+                    'match' => $cl['match'] ?? 'any',
+                    'rules' => $rules,
+                );
             }
         }
         return $map;

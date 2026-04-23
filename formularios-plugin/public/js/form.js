@@ -33,10 +33,23 @@
         }
         var hasBranching = Object.keys(branchingMap).length > 0;
 
+        // Parse conditional logic data
+        var conditionsMap = {};
+        var conditionsData = $wrap.attr('data-conditions');
+        if (conditionsData) {
+            try {
+                conditionsMap = JSON.parse(conditionsData);
+            } catch(e) {
+                conditionsMap = {};
+            }
+        }
+        var hasConditions = Object.keys(conditionsMap).length > 0;
+
         // Track section visit history for back navigation with branching
         var sectionHistory = [1];
 
         if (hasSections) {
+            if (hasConditions) evaluateConditions();
             updateProgress();
             updateNavButtons();
         }
@@ -58,7 +71,9 @@
 
             if (nextSection > 0 && nextSection <= totalSections) {
                 currentSection = nextSection;
-                sectionHistory.push(currentSection);
+                if (hasBranching || hasConditions) {
+                    sectionHistory.push(currentSection);
+                }
                 showSection(currentSection);
                 updateProgress();
                 updateNavButtons();
@@ -68,11 +83,12 @@
 
         // Previous button
         $wrap.on('click', '.fm-btn-prev', function() {
-            if (hasBranching && sectionHistory.length > 1) {
+            if ((hasBranching || hasConditions) && sectionHistory.length > 1) {
                 sectionHistory.pop();
                 currentSection = sectionHistory[sectionHistory.length - 1];
             } else {
-                currentSection--;
+                var prev = getPrevVisibleSection(currentSection - 1);
+                if (prev > 0) currentSection = prev;
             }
             showSection(currentSection);
             updateProgress();
@@ -463,7 +479,15 @@
         }
 
         function updateProgress() {
-            var pct = (currentSection / totalSections) * 100;
+            var $visible = $sections.not('.fm-section-hidden');
+            var totalVisible = $visible.length || 1;
+            var currentIndex = 0;
+            $visible.each(function(i) {
+                if (parseInt($(this).attr('data-section'), 10) === currentSection) {
+                    currentIndex = i + 1;
+                }
+            });
+            var pct = (currentIndex / totalVisible) * 100;
             $form.find('.fm-progress-fill').css('width', pct + '%');
         }
 
@@ -472,58 +496,59 @@
             var $next = $wrap.find('.fm-btn-next');
             var $submit = $wrap.find('.fm-btn-submit');
 
-            if (hasBranching) {
+            if (hasBranching || hasConditions) {
                 $prev.toggle(sectionHistory.length > 1);
             } else {
                 $prev.toggle(currentSection > 1);
             }
 
             var nextSection = determineNextSection(currentSection);
-            if (nextSection === '__end__' || currentSection === totalSections) {
+            var isLast = nextSection === '__end__' || getNextVisibleSection(currentSection + 1) < 0;
+            if (isLast) {
                 $next.hide();
                 $submit.show();
             } else {
-                $next.toggle(currentSection < totalSections);
-                $submit.toggle(currentSection === totalSections);
+                $next.show();
+                $submit.hide();
             }
         }
 
         function determineNextSection(fromSection) {
-            if (!hasBranching) return fromSection + 1;
+            if (hasBranching) {
+                var $currentSection = $sections.filter('[data-section="' + fromSection + '"]');
 
-            var $currentSection = $sections.filter('[data-section="' + fromSection + '"]');
+                for (var fieldName in branchingMap) {
+                    var $field = $currentSection.find('[name="' + fieldName + '"]');
+                    var selectedValue = '';
 
-            for (var fieldName in branchingMap) {
-                var $field = $currentSection.find('[name="' + fieldName + '"]');
-                var selectedValue = '';
-
-                if ($field.is('select')) {
-                    selectedValue = $field.val();
-                } else if ($field.is(':radio')) {
-                    selectedValue = $currentSection.find('[name="' + fieldName + '"]:checked').val() || '';
-                }
-
-                if (selectedValue && branchingMap[fieldName][selectedValue]) {
-                    var target = branchingMap[fieldName][selectedValue];
-
-                    if (target === '__end__') {
-                        return '__end__';
+                    if ($field.is('select')) {
+                        selectedValue = $field.val();
+                    } else if ($field.is(':radio')) {
+                        selectedValue = $currentSection.find('[name="' + fieldName + '"]:checked').val() || '';
                     }
 
-                    var targetNum = -1;
-                    $sections.each(function() {
-                        if ($(this).attr('data-section-id') === target) {
-                            targetNum = parseInt($(this).attr('data-section'), 10);
-                        }
-                    });
+                    if (selectedValue && branchingMap[fieldName][selectedValue]) {
+                        var target = branchingMap[fieldName][selectedValue];
 
-                    if (targetNum > 0) {
-                        return targetNum;
+                        if (target === '__end__') {
+                            return '__end__';
+                        }
+
+                        var targetNum = -1;
+                        $sections.each(function() {
+                            if ($(this).attr('data-section-id') === target) {
+                                targetNum = parseInt($(this).attr('data-section'), 10);
+                            }
+                        });
+
+                        if (targetNum > 0) {
+                            return hasConditions ? getNextVisibleSection(targetNum) : targetNum;
+                        }
                     }
                 }
             }
 
-            return fromSection + 1;
+            return getNextVisibleSection(fromSection + 1);
         }
 
         // Update nav buttons when a branching field changes
@@ -531,6 +556,97 @@
             $form.on('change', 'select, input[type="radio"]', function() {
                 updateNavButtons();
             });
+        }
+
+        // Evaluate conditions when multiple-choice fields change
+        if (hasConditions) {
+            $form.on('change', 'select, input[type="radio"], input[type="checkbox"]', function() {
+                evaluateConditions();
+                if ($sections.filter('[data-section="' + currentSection + '"]').hasClass('fm-section-hidden')) {
+                    var next = getNextVisibleSection(1);
+                    if (next > 0) {
+                        currentSection = next;
+                        sectionHistory = [currentSection];
+                        showSection(currentSection);
+                    }
+                }
+                updateProgress();
+                updateNavButtons();
+            });
+        }
+
+        // --- Conditional Logic ---
+
+        function evaluateConditions() {
+            $sections.each(function() {
+                var sectionId = $(this).attr('data-section-id');
+                var config = conditionsMap[sectionId];
+                if (!config) return;
+
+                var rules = config.rules || [];
+                if (rules.length === 0) return;
+
+                var results = rules.map(function(rule) {
+                    var values = getFieldSelectedValues(rule.field);
+                    if (rule.operator === 'is') {
+                        return values.indexOf(rule.value) !== -1;
+                    }
+                    return values.indexOf(rule.value) === -1;
+                });
+
+                var visible;
+                if (config.match === 'all') {
+                    visible = results.every(function(r) { return r; });
+                } else {
+                    visible = results.some(function(r) { return r; });
+                }
+
+                if (visible) {
+                    $(this).removeClass('fm-section-hidden');
+                } else {
+                    $(this).addClass('fm-section-hidden');
+                }
+            });
+        }
+
+        function getFieldSelectedValues(fieldName) {
+            var values = [];
+            var $select = $form.find('select[name="' + fieldName + '"]');
+            if ($select.length) {
+                var val = $select.val();
+                if (val) values.push(val);
+                return values;
+            }
+            var $radio = $form.find('input[type="radio"][name="' + fieldName + '"]');
+            if ($radio.length) {
+                var checked = $radio.filter(':checked').val();
+                if (checked) values.push(checked);
+                return values;
+            }
+            $form.find('input[type="checkbox"][name="' + fieldName + '[]"]').filter(':checked').each(function() {
+                values.push($(this).val());
+            });
+            return values;
+        }
+
+        function getNextVisibleSection(fromNum) {
+            for (var n = fromNum; n <= totalSections; n++) {
+                var $sec = $sections.filter('[data-section="' + n + '"]');
+                if ($sec.length && !$sec.hasClass('fm-section-hidden')) {
+                    return n;
+                }
+            }
+            return -1;
+        }
+
+        function getPrevVisibleSection(fromNum) {
+            for (var n = fromNum; n >= 1; n--) {
+                var $sec = $sections.filter('[data-section="' + n + '"]');
+                if ($sec.length && !$sec.hasClass('fm-section-hidden')) {
+                    return n;
+                }
+            }
+            return -1;
         }
 
         // --- Validation ---

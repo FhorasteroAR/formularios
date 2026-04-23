@@ -75,6 +75,10 @@
     animation: fm-slide-in 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.fm-section.fm-section-hidden {
+    display: none !important;
+}
+
 @keyframes fm-slide-in {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }

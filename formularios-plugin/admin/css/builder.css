@@ -776,6 +776,119 @@
     animation: fm-fade-in 0.3s ease;
 }
 
+/* Conditional Logic */
+.fm-condition-wrap {
+    border-top: 1px solid var(--fm-gray-200);
+    margin-top: 12px;
+    padding-top: 12px;
+}
+
+.fm-condition-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fm-gray-600);
+    cursor: pointer;
+    user-select: none;
+}
+
+.fm-condition-toggle input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.fm-condition-toggle svg {
+    color: var(--fm-gray-400);
+}
+
+.fm-condition-rules {
+    margin-top: 12px;
+    padding: 14px;
+    background: var(--fm-gray-50);
+    border: 1px solid var(--fm-gray-200);
+    border-radius: var(--fm-radius);
+}
+
+.fm-condition-match-row {
+    font-size: 13px;
+    color: var(--fm-gray-600);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.fm-condition-match-row .fm-select {
+    width: auto;
+    min-width: 90px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fm-condition-rule {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.fm-condition-rule .fm-select {
+    flex: 1;
+    min-width: 120px;
+    padding: 7px 10px;
+    font-size: 12px;
+}
+
+.fm-condition-field {
+    flex: 2 !important;
+}
+
+.fm-condition-remove {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--fm-gray-300);
+    border-radius: 6px;
+    background: var(--fm-white);
+    color: var(--fm-gray-400);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: var(--fm-transition);
+}
+
+.fm-condition-remove:hover {
+    border-color: var(--fm-red);
+    color: var(--fm-red);
+    background: #FEF2F2;
+}
+
+.fm-condition-add-rule {
+    margin-top: 4px;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px dashed var(--fm-gray-300);
+    border-radius: 6px;
+    color: var(--fm-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--fm-transition);
+}
+
+.fm-condition-add-rule:hover {
+    border-color: var(--fm-primary);
+    background: var(--fm-primary-light);
+}
+
 /* Responsive */
 @media (max-width: 782px) {
     #formularios-floating-menu {
@@ -784,5 +897,15 @@
     .fmenu-btn {
         min-width: 60px;
         padding: 10px 12px;
+    }
+    .fm-condition-rule {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .fm-condition-rule .fm-select {
+        min-width: auto;
+    }
+    .fm-condition-remove {
+        align-self: flex-end;
     }
 }

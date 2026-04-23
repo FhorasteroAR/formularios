@@ -53,6 +53,9 @@
                             return opt;
                         });
                     }
+                    if (el.type === 'section' && !el.conditional_logic) {
+                        el.conditional_logic = { enabled: false, match: 'any', rules: [] };
+                    }
                 });
             } catch(e) {
                 elements = [];
@@ -162,6 +165,50 @@
             }
         });
 
+        // Conditional logic toggle
+        $('#formularios-elements-list').on('change', '.fm-condition-enabled', function() {
+            var $rules = $(this).closest('.fm-condition-wrap').find('.fm-condition-rules');
+            if ($(this).is(':checked')) {
+                $rules.slideDown(200);
+            } else {
+                $rules.slideUp(200);
+            }
+            syncAllData();
+        });
+
+        // Add condition rule
+        $('#formularios-elements-list').on('click', '.fm-condition-add-rule', function() {
+            var $list = $(this).closest('.fm-condition-rules').find('.fm-condition-list');
+            $list.append(buildConditionRuleRow({ field_id: '', operator: 'is', value: '' }));
+            syncAllData();
+        });
+
+        // Remove condition rule
+        $('#formularios-elements-list').on('click', '.fm-condition-remove', function() {
+            $(this).closest('.fm-condition-rule').remove();
+            syncAllData();
+        });
+
+        // Condition field change — repopulate value options
+        $('#formularios-elements-list').on('change', '.fm-condition-field', function() {
+            var fieldId = $(this).val();
+            var $rule = $(this).closest('.fm-condition-rule');
+            var $valueSelect = $rule.find('.fm-condition-value');
+            var options = fieldId ? getFieldOptionsLabels(fieldId) : [];
+
+            $valueSelect.empty();
+            $valueSelect.append('<option value="">Seleccionar valor...</option>');
+            options.forEach(function(v) {
+                $valueSelect.append('<option value="' + escAttr(v) + '">' + escHtml(v) + '</option>');
+            });
+            syncAllData();
+        });
+
+        // Condition operator/value/match change
+        $('#formularios-elements-list').on('change', '.fm-condition-operator, .fm-condition-value, .fm-condition-match-select', function() {
+            syncAllData();
+        });
+
         // Layout radio toggle active class + custom width visibility
         $('#formularios-elements-list').on('change', '.fm-layout-radio', function() {
             var $layoutRow = $(this).closest('.fm-layout-row');
@@ -243,7 +290,7 @@
             case 'video':
                 return $.extend(base, { video_url: '', caption: '' });
             case 'section':
-                return $.extend(base, { title: '', description: '' });
+                return $.extend(base, { title: '', description: '', conditional_logic: { enabled: false, match: 'any', rules: [] } });
         }
         return base;
     }
@@ -481,6 +528,7 @@
             case 'section':
                 html += '<input type="text" class="fm-input fm-data-input" data-field="title" value="' + escAttr(el.title) + '" placeholder="' + escAttr(formularios.i18n.section_ph) + '" style="font-size:16px;font-weight:600" />';
                 html += '<input type="text" class="fm-input fm-data-input" data-field="description" value="' + escAttr(el.description) + '" placeholder="' + escAttr(formularios.i18n.section_desc) + '" />';
+                html += buildConditionLogicUI(el);
                 break;
         }
         return html;
@@ -509,6 +557,124 @@
         html += '<button type="button" class="fm-option-remove" title="' + escAttr(formularios.i18n.remove) + '">&times;</button>';
         html += '</div>';
         return html;
+    }
+
+    // --- Conditional Logic ---
+
+    function getMultipleChoiceFields() {
+        var fields = [];
+        elements.forEach(function(el) {
+            if (el.type === 'question' && NEEDS_OPTIONS.indexOf(el.input_type) !== -1) {
+                fields.push({
+                    id: el.id,
+                    label: el.label || 'Campo sin nombre',
+                    input_type: el.input_type,
+                    options: (el.options || []).map(function(opt) {
+                        return typeof opt === 'object' ? (opt.label || '') : opt;
+                    }).filter(function(v) { return v !== ''; })
+                });
+            }
+        });
+        return fields;
+    }
+
+    function getFieldOptionsLabels(fieldId) {
+        var el = findElement(fieldId);
+        if (!el || !el.options) return [];
+        return el.options.map(function(opt) {
+            return typeof opt === 'object' ? (opt.label || '') : opt;
+        }).filter(function(v) { return v !== ''; });
+    }
+
+    function buildConditionLogicUI(el) {
+        var cl = el.conditional_logic || { enabled: false, match: 'any', rules: [] };
+        var html = '';
+
+        html += '<div class="fm-condition-wrap">';
+        html += '<label class="fm-condition-toggle"><input type="checkbox" class="fm-condition-enabled"' + (cl.enabled ? ' checked' : '') + ' />';
+        html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>';
+        html += ' Logica condicional</label>';
+
+        html += '<div class="fm-condition-rules" style="' + (cl.enabled ? '' : 'display:none') + '">';
+        html += '<div class="fm-condition-match-row">';
+        html += '<span>Mostrar si</span> ';
+        html += '<select class="fm-select fm-condition-match-select">';
+        html += '<option value="any"' + (cl.match === 'any' ? ' selected' : '') + '>alguna</option>';
+        html += '<option value="all"' + (cl.match === 'all' ? ' selected' : '') + '>todas</option>';
+        html += '</select>';
+        html += ' <span>de las condiciones se cumple:</span>';
+        html += '</div>';
+
+        html += '<div class="fm-condition-list">';
+        if (cl.rules && cl.rules.length) {
+            cl.rules.forEach(function(rule) {
+                html += buildConditionRuleRow(rule);
+            });
+        }
+        html += '</div>';
+
+        html += '<button type="button" class="fm-condition-add-rule">+ Agregar condicion</button>';
+        html += '</div>';
+        html += '</div>';
+
+        return html;
+    }
+
+    function buildConditionRuleRow(rule) {
+        rule = rule || { field_id: '', operator: 'is', value: '' };
+        var fields = getMultipleChoiceFields();
+        var valueOptions = rule.field_id ? getFieldOptionsLabels(rule.field_id) : [];
+
+        var html = '<div class="fm-condition-rule">';
+
+        html += '<select class="fm-select fm-condition-field">';
+        html += '<option value="">Seleccionar campo...</option>';
+        fields.forEach(function(f) {
+            var typeLabel = { select: 'Desp.', radio: 'Radio', checkbox: 'Check' };
+            html += '<option value="' + escAttr(f.id) + '"' + (rule.field_id === f.id ? ' selected' : '') + '>';
+            html += escHtml(f.label) + ' (' + (typeLabel[f.input_type] || f.input_type) + ')';
+            html += '</option>';
+        });
+        html += '</select>';
+
+        html += '<select class="fm-select fm-condition-operator">';
+        html += '<option value="is"' + (rule.operator === 'is' ? ' selected' : '') + '>es igual a</option>';
+        html += '<option value="is_not"' + (rule.operator === 'is_not' ? ' selected' : '') + '>no es igual a</option>';
+        html += '</select>';
+
+        html += '<select class="fm-select fm-condition-value">';
+        html += '<option value="">Seleccionar valor...</option>';
+        valueOptions.forEach(function(v) {
+            html += '<option value="' + escAttr(v) + '"' + (rule.value === v ? ' selected' : '') + '>' + escHtml(v) + '</option>';
+        });
+        html += '</select>';
+
+        html += '<button type="button" class="fm-condition-remove" title="Quitar condicion">&times;</button>';
+        html += '</div>';
+
+        return html;
+    }
+
+    function syncConditionLogic(el, $dom) {
+        if (el.type !== 'section') return;
+        if (!el.conditional_logic) {
+            el.conditional_logic = { enabled: false, match: 'any', rules: [] };
+        }
+        el.conditional_logic.enabled = $dom.find('.fm-condition-enabled').is(':checked');
+        el.conditional_logic.match = $dom.find('.fm-condition-match-select').val() || 'any';
+        el.conditional_logic.rules = [];
+        $dom.find('.fm-condition-rule').each(function() {
+            var fieldId = $(this).find('.fm-condition-field').val();
+            var operator = $(this).find('.fm-condition-operator').val();
+            var value = $(this).find('.fm-condition-value').val();
+            if (fieldId) {
+                el.conditional_logic.rules.push({
+                    field_id: fieldId,
+                    operator: operator || 'is',
+                    value: value || ''
+                });
+            }
+        });
     }
 
     // --- Options ---
@@ -631,11 +797,12 @@
     function syncAllData() {
         // Sync all input values to elements array
         $('#formularios-elements-list .fm-element').each(function() {
-            var id = $(this).data('id');
+            var $dom = $(this);
+            var id = $dom.data('id');
             var el = findElement(id);
             if (!el) return;
 
-            $(this).find('.fm-data-input').each(function() {
+            $dom.find('.fm-data-input').each(function() {
                 var field = $(this).data('field');
                 if (!field) return;
                 if ($(this).is(':radio')) {
@@ -648,6 +815,8 @@
                     el[field] = $(this).val();
                 }
             });
+
+            syncConditionLogic(el, $dom);
         });
 
         $('#formularios-data').val(JSON.stringify(elements));

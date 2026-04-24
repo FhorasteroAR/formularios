@@ -179,6 +179,14 @@
         // Add condition rule
         $('#formularios-elements-list').on('click', '.fm-condition-add-rule', function() {
             var $list = $(this).closest('.fm-condition-rules').find('.fm-condition-list');
+            var fields = getMultipleChoiceFields();
+            if (fields.length === 0) {
+                if (!$list.find('.fm-condition-no-fields').length) {
+                    $list.append('<p class="fm-condition-no-fields">Agrega preguntas de tipo Desplegable, Opcion multiple o Casillas al formulario para usar logica condicional.</p>');
+                }
+                return;
+            }
+            $list.find('.fm-condition-no-fields').remove();
             $list.append(buildConditionRuleRow({ field_id: '', operator: 'is', value: '' }));
             syncAllData();
         });

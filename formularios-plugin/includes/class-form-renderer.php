@@ -385,6 +385,7 @@ class Formularios_Renderer {
             $data_attrs .= ' data-file-type-error="' . esc_attr( $el['custom_file_type_error'] ) . '"';
         }
         $name = 'fm_field_' . sanitize_key( $el['id'] );
+        $aria_label_attr = empty( $el['label'] ) ? ' aria-label="' . esc_attr( $el['placeholder'] ?? 'Campo de formulario' ) . '"' : '';
         $layout = $el['layout'] ?? 'full';
         $layout_class = 'full' !== $layout && 'custom' !== $layout ? ' fm-field-' . esc_attr( $layout ) : '';
         $inline_style = '';
@@ -394,18 +395,22 @@ class Formularios_Renderer {
         }
         ?>
         <div class="fm-field<?php echo $layout_class; ?>"<?php echo $inline_style; ?><?php echo $data_attrs; ?> data-type="<?php echo esc_attr( $el['input_type'] ); ?>">
+            <?php
+            $is_group = in_array( $el['input_type'], array( 'radio', 'checkbox' ), true );
+            $label_id = $name . '_label';
+            ?>
             <?php if ( ! empty( $el['label'] ) ) : ?>
-                <label class="fm-label"><?php echo esc_html( $el['label'] ); ?><?php echo $req_mark; ?></label>
+                <label class="fm-label"<?php echo $is_group ? ' id="' . esc_attr( $label_id ) . '"' : ' for="' . esc_attr( $name ) . '"'; ?>><?php echo esc_html( $el['label'] ); ?><?php echo $req_mark; ?></label>
             <?php endif; ?>
 
             <?php
             switch ( $el['input_type'] ) {
                 case 'textarea':
-                    echo '<textarea name="' . esc_attr( $name ) . '" class="fm-control fm-textarea" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '" rows="4"' . $req_attr . '></textarea>';
+                    echo '<textarea id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-textarea" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '" rows="4"' . $req_attr . $aria_label_attr . '></textarea>';
                     break;
 
                 case 'select':
-                    echo '<select name="' . esc_attr( $name ) . '" class="fm-control fm-select"' . $req_attr . '>';
+                    echo '<select id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-select"' . $req_attr . $aria_label_attr . '>';
                     echo '<option value="">Selecciona una opcion...</option>';
                     if ( ! empty( $el['options'] ) ) {
                         foreach ( $el['options'] as $opt ) {
@@ -417,7 +422,7 @@ class Formularios_Renderer {
                     break;
 
                 case 'radio':
-                    echo '<div class="fm-choices">';
+                    echo '<div class="fm-choices" role="radiogroup"' . ( ! empty( $el['label'] ) ? ' aria-labelledby="' . esc_attr( $label_id ) . '"' : '' ) . '>';
                     if ( ! empty( $el['options'] ) ) {
                         foreach ( $el['options'] as $j => $opt ) {
                             $label = is_array( $opt ) ? ( $opt['label'] ?? '' ) : $opt;
@@ -432,7 +437,7 @@ class Formularios_Renderer {
                     break;
 
                 case 'checkbox':
-                    echo '<div class="fm-choices">';
+                    echo '<div class="fm-choices" role="group"' . ( ! empty( $el['label'] ) ? ' aria-labelledby="' . esc_attr( $label_id ) . '"' : '' ) . '>';
                     if ( ! empty( $el['options'] ) ) {
                         foreach ( $el['options'] as $j => $opt ) {
                             $label = is_array( $opt ) ? ( $opt['label'] ?? '' ) : $opt;
@@ -453,8 +458,8 @@ class Formularios_Renderer {
                     }
                     $max_size = absint( $el['max_size'] ?? 5 );
                     echo '<div class="fm-file-upload-wrap">';
-                    echo '<input type="file" name="' . esc_attr( $name ) . '[]" class="fm-control fm-file-input" data-max-size="' . esc_attr( $max_size ) . '"' . $accept . $req_attr . ' multiple style="display:none" />';
-                    echo '<div class="fm-file-dropzone" tabindex="0">';
+                    echo '<input type="file" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '[]" class="fm-control fm-file-input" data-max-size="' . esc_attr( $max_size ) . '"' . $accept . $req_attr . $aria_label_attr . ' multiple style="display:none" />';
+                    echo '<label for="' . esc_attr( $name ) . '" class="fm-file-dropzone" tabindex="0">';
                     echo '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
                     echo '<span class="fm-file-dropzone-text">Haz clic o arrastra archivos aqui</span>';
                     if ( ! empty( $el['accepted_types'] ) || $max_size ) {
@@ -467,21 +472,21 @@ class Formularios_Renderer {
                         }
                         echo '<span class="fm-file-dropzone-hint">' . esc_html( implode( ' | ', $hints ) ) . '</span>';
                     }
-                    echo '</div>';
+                    echo '</label>';
                     echo '<ul class="fm-file-list"></ul>';
                     echo '</div>';
                     break;
 
                 case 'email':
-                    echo '<input type="email" name="' . esc_attr( $name ) . '" class="fm-control fm-input fm-email-input" placeholder="' . esc_attr( $el['placeholder'] ?: 'correo@ejemplo.com' ) . '"' . $req_attr . ' />';
-                    echo '<label class="fm-label fm-label-confirm">Confirmar email' . $req_mark . '</label>';
-                    echo '<input type="email" name="' . esc_attr( $name ) . '_confirm" class="fm-control fm-input fm-email-confirm" placeholder="Repite tu email"' . $req_attr . ' />';
+                    echo '<input type="email" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-input fm-email-input" placeholder="' . esc_attr( $el['placeholder'] ?: 'correo@ejemplo.com' ) . '"' . $req_attr . $aria_label_attr . ' />';
+                    echo '<label class="fm-label fm-label-confirm" for="' . esc_attr( $name ) . '_confirm">Confirmar email' . $req_mark . '</label>';
+                    echo '<input type="email" id="' . esc_attr( $name ) . '_confirm" name="' . esc_attr( $name ) . '_confirm" class="fm-control fm-input fm-email-confirm" placeholder="Repite tu email"' . $req_attr . ' />';
                     echo '<span class="fm-error-msg fm-email-match-error"></span>';
                     break;
 
                 default:
                     $input_type = in_array( $el['input_type'], array( 'number', 'date' ), true ) ? $el['input_type'] : 'text';
-                    echo '<input type="' . esc_attr( $input_type ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-input" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '"' . $req_attr . ' />';
+                    echo '<input type="' . esc_attr( $input_type ) . '" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-input" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '"' . $req_attr . $aria_label_attr . ' />';
                     break;
             }
             ?>

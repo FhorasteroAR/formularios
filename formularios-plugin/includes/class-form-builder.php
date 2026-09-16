@@ -330,6 +330,8 @@ class Formularios_Builder {
                     $item['custom_email_error']            = sanitize_text_field( $el['custom_email_error'] ?? '' );
                     $item['custom_email_mismatch_error']   = sanitize_text_field( $el['custom_email_mismatch_error'] ?? '' );
                     $item['custom_number_error']           = sanitize_text_field( $el['custom_number_error'] ?? '' );
+                    $item['custom_format_error']           = sanitize_text_field( $el['custom_format_error'] ?? '' );
+                    $item['custom_date_error']             = sanitize_text_field( $el['custom_date_error'] ?? '' );
                     $item['custom_file_size_error']        = sanitize_text_field( $el['custom_file_size_error'] ?? '' );
                     $item['custom_file_type_error']        = sanitize_text_field( $el['custom_file_type_error'] ?? '' );
                     $item['placeholder']    = sanitize_text_field( $el['placeholder'] ?? '' );
@@ -339,6 +341,33 @@ class Formularios_Builder {
                     $item['track_stats']    = ! empty( $el['track_stats'] );
                     $item['accepted_types'] = sanitize_text_field( $el['accepted_types'] ?? '' );
                     $item['max_size']       = absint( $el['max_size'] ?? 5 );
+
+                    // Reglas de validacion (formato, longitud, rango, fechas)
+                    $item['text_format']  = in_array( $el['text_format'] ?? '', Formularios_Validation::FORMATS, true )
+                        ? $el['text_format']
+                        : 'any';
+                    $item['min_length']   = Formularios_Validation::int_or_empty( $el['min_length'] ?? '' );
+                    $item['max_length']   = Formularios_Validation::int_or_empty( $el['max_length'] ?? '' );
+                    $item['integer_only'] = ! empty( $el['integer_only'] );
+                    $item['min_value']    = Formularios_Validation::num_or_empty( $el['min_value'] ?? '' );
+                    $item['max_value']    = Formularios_Validation::num_or_empty( $el['max_value'] ?? '' );
+
+                    $item['date_min_mode'] = in_array( $el['date_min_mode'] ?? '', Formularios_Validation::DATE_MODES, true )
+                        ? $el['date_min_mode']
+                        : 'none';
+                    $item['date_max_mode'] = in_array( $el['date_max_mode'] ?? '', Formularios_Validation::DATE_MODES, true )
+                        ? $el['date_max_mode']
+                        : 'none';
+                    $item['date_min_custom'] = Formularios_Validation::is_ymd( $el['date_min_custom'] ?? '' ) ? $el['date_min_custom'] : '';
+                    $item['date_max_custom'] = Formularios_Validation::is_ymd( $el['date_max_custom'] ?? '' ) ? $el['date_max_custom'] : '';
+
+                    // Un minimo mayor que el maximo dejaria el campo imposible de completar.
+                    if ( '' !== $item['min_length'] && '' !== $item['max_length'] && $item['min_length'] > $item['max_length'] ) {
+                        $item['min_length'] = '';
+                    }
+                    if ( '' !== $item['min_value'] && '' !== $item['max_value'] && $item['min_value'] > $item['max_value'] ) {
+                        $item['min_value'] = '';
+                    }
                     $item['options']        = array();
                     if ( ! empty( $el['options'] ) && is_array( $el['options'] ) ) {
                         foreach ( $el['options'] as $opt ) {

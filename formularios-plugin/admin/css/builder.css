@@ -747,6 +747,56 @@
     flex-wrap: wrap;
 }
 
+/* Validation rules panel */
+.fm-validation-box {
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--fm-gray-100);
+}
+
+.fm-validation-box > .fm-input-label {
+    margin-bottom: 8px;
+}
+
+.fm-validation-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.fm-validation-row:last-child {
+    margin-bottom: 0;
+}
+
+.fm-validation-field {
+    flex: 1;
+    min-width: 150px;
+}
+
+.fm-validation-field .fm-input,
+.fm-validation-field .fm-select {
+    width: 100%;
+}
+
+.fm-validation-hint {
+    display: block;
+    font-size: 12px;
+    color: var(--fm-gray-400);
+    margin-bottom: 4px;
+}
+
+.fm-validation-field .fm-required-toggle {
+    margin-top: 22px;
+}
+
+.fm-vr-format-msg .fm-input,
+.fm-vr-date-msg .fm-input {
+    width: 100%;
+    font-size: 13px;
+    color: var(--fm-gray-600);
+}
+
 /* File Upload Settings */
 .fm-file-settings {
     border-top: 1px solid var(--fm-gray-100);

@@ -384,6 +384,13 @@ class Formularios_Renderer {
         if ( '' !== ( $el['custom_file_type_error'] ?? '' ) ) {
             $data_attrs .= ' data-file-type-error="' . esc_attr( $el['custom_file_type_error'] ) . '"';
         }
+        if ( '' !== ( $el['custom_format_error'] ?? '' ) ) {
+            $data_attrs .= ' data-format-error="' . esc_attr( $el['custom_format_error'] ) . '"';
+        }
+        if ( '' !== ( $el['custom_date_error'] ?? '' ) ) {
+            $data_attrs .= ' data-date-error="' . esc_attr( $el['custom_date_error'] ) . '"';
+        }
+        $data_attrs .= $this->validation_data_attrs( $el );
         $name = 'fm_field_' . sanitize_key( $el['id'] );
         $aria_label_attr = empty( $el['label'] ) ? ' aria-label="' . esc_attr( $el['placeholder'] ?? 'Campo de formulario' ) . '"' : '';
         $layout = $el['layout'] ?? 'full';
@@ -406,7 +413,7 @@ class Formularios_Renderer {
             <?php
             switch ( $el['input_type'] ) {
                 case 'textarea':
-                    echo '<textarea id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-textarea" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '" rows="4"' . $req_attr . $aria_label_attr . '></textarea>';
+                    echo '<textarea id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-textarea" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '" rows="4"' . $req_attr . $this->constraint_attrs( $el ) . $aria_label_attr . '></textarea>';
                     break;
 
                 case 'select':
@@ -486,13 +493,103 @@ class Formularios_Renderer {
 
                 default:
                     $input_type = in_array( $el['input_type'], array( 'number', 'date' ), true ) ? $el['input_type'] : 'text';
-                    echo '<input type="' . esc_attr( $input_type ) . '" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-input" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '"' . $req_attr . $aria_label_attr . ' />';
+                    echo '<input type="' . esc_attr( $input_type ) . '" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" class="fm-control fm-input" placeholder="' . esc_attr( $el['placeholder'] ?? '' ) . '"' . $req_attr . $this->constraint_attrs( $el ) . $aria_label_attr . ' />';
                     break;
             }
             ?>
             <span class="fm-error-msg"></span>
         </div>
         <?php
+    }
+
+    /**
+     * data-* que describen las reglas del campo, para que el JS del front
+     * pueda filtrar la escritura y mostrar el mismo error que el servidor.
+     */
+    private function validation_data_attrs( $el ) {
+        $type  = $el['input_type'] ?? 'text';
+        $attrs = '';
+
+        if ( Formularios_Validation::supports_format( $type ) ) {
+            $format = Formularios_Validation::get_format( $el );
+            if ( 'any' !== $format ) {
+                $attrs .= ' data-format="' . esc_attr( $format ) . '"';
+            }
+        }
+
+        if ( 'number' === $type && ! empty( $el['integer_only'] ) ) {
+            $attrs .= ' data-integer-only="1"';
+        }
+
+        if ( 'date' === $type ) {
+            // La pagina puede quedar cacheada: el front recalcula "hoy" al cargar.
+            if ( 'today' === ( $el['date_min_mode'] ?? '' ) ) {
+                $attrs .= ' data-date-min-today="1"';
+            }
+            if ( 'today' === ( $el['date_max_mode'] ?? '' ) ) {
+                $attrs .= ' data-date-max-today="1"';
+            }
+        }
+
+        if ( in_array( $type, array( 'text', 'textarea', 'number' ), true ) ) {
+            $min_length = Formularios_Validation::int_or_empty( $el['min_length'] ?? '' );
+            $max_length = Formularios_Validation::int_or_empty( $el['max_length'] ?? '' );
+            if ( '' !== $min_length ) {
+                $attrs .= ' data-min-length="' . esc_attr( $min_length ) . '"';
+            }
+            if ( '' !== $max_length ) {
+                $attrs .= ' data-max-length="' . esc_attr( $max_length ) . '"';
+            }
+        }
+
+        return $attrs;
+    }
+
+    /**
+     * Atributos nativos del input (min, max, step, maxlength, inputmode).
+     * Son la primera barrera: el navegador ya impide parte de la entrada
+     * invalida, y el JS y PHP repiten la verificacion.
+     */
+    private function constraint_attrs( $el ) {
+        $type  = $el['input_type'] ?? 'text';
+        $attrs = '';
+
+        if ( 'number' === $type ) {
+            $min = Formularios_Validation::num_or_empty( $el['min_value'] ?? '' );
+            $max = Formularios_Validation::num_or_empty( $el['max_value'] ?? '' );
+            if ( '' !== $min ) {
+                $attrs .= ' min="' . esc_attr( $min ) . '"';
+            }
+            if ( '' !== $max ) {
+                $attrs .= ' max="' . esc_attr( $max ) . '"';
+            }
+            if ( ! empty( $el['integer_only'] ) ) {
+                $attrs .= ' step="1" inputmode="numeric"';
+            }
+        }
+
+        if ( 'date' === $type ) {
+            $min = Formularios_Validation::resolve_date_bound( $el['date_min_mode'] ?? 'none', $el['date_min_custom'] ?? '' );
+            $max = Formularios_Validation::resolve_date_bound( $el['date_max_mode'] ?? 'none', $el['date_max_custom'] ?? '' );
+            if ( '' !== $min ) {
+                $attrs .= ' min="' . esc_attr( $min ) . '"';
+            }
+            if ( '' !== $max ) {
+                $attrs .= ' max="' . esc_attr( $max ) . '"';
+            }
+        }
+
+        if ( in_array( $type, array( 'text', 'textarea' ), true ) ) {
+            $max_length = Formularios_Validation::int_or_empty( $el['max_length'] ?? '' );
+            if ( '' !== $max_length ) {
+                $attrs .= ' maxlength="' . esc_attr( $max_length ) . '"';
+            }
+            if ( 'numbers' === Formularios_Validation::get_format( $el ) ) {
+                $attrs .= ' inputmode="numeric"';
+            }
+        }
+
+        return $attrs;
     }
 
     private function render_title_desc( $el ) {

@@ -27,6 +27,20 @@
 
     var NEEDS_OPTIONS = ['select', 'radio', 'checkbox'];
     var SUPPORTS_BRANCHING = ['select', 'radio'];
+    var TEXT_TYPES = ['text', 'textarea'];
+
+    var TEXT_FORMATS = {
+        any:          'Cualquier caracter',
+        letters:      'Solo letras',
+        numbers:      'Solo numeros (DNI, telefono...)',
+        alphanumeric: 'Letras y numeros'
+    };
+
+    var DATE_MODES = {
+        none:   'Sin limite',
+        today:  'Hoy',
+        custom: 'Fecha especifica'
+    };
 
     // Initialize
     $(document).ready(function() {
@@ -111,6 +125,16 @@
                 $row.slideDown(150);
             } else {
                 $row.slideUp(150);
+            }
+        });
+
+        // Show the custom date picker only when "Fecha especifica" is selected
+        $('#formularios-elements-list').on('change', '.fm-date-mode-select', function() {
+            var $custom = $(this).closest('.fm-validation-field').find('.fm-date-custom-input');
+            if ($(this).val() === 'custom') {
+                $custom.css('margin-top', '6px').slideDown(150);
+            } else {
+                $custom.slideUp(150);
             }
         });
 
@@ -281,8 +305,20 @@
                     custom_email_error: '',
                     custom_email_mismatch_error: '',
                     custom_number_error: '',
+                    custom_format_error: '',
+                    custom_date_error: '',
                     custom_file_size_error: '',
                     custom_file_type_error: '',
+                    text_format: 'any',
+                    min_length: '',
+                    max_length: '',
+                    integer_only: false,
+                    min_value: '',
+                    max_value: '',
+                    date_min_mode: 'none',
+                    date_max_mode: 'none',
+                    date_min_custom: '',
+                    date_max_custom: '',
                     placeholder: '',
                     layout: 'full',
                     custom_width: '',
@@ -478,6 +514,9 @@
                 html += '</div>';
                 html += '</div>';
 
+                // Validation rules (format / length / range / date limits)
+                html += buildValidationUI(el);
+
                 // Type-specific custom validation messages
                 var showEmail = (el.input_type === 'email');
                 html += '<div class="fm-email-validation-msgs" style="' + (showEmail ? '' : 'display:none') + '">';
@@ -565,6 +604,103 @@
         html += '<button type="button" class="fm-option-remove" title="' + escAttr(formularios.i18n.remove) + '">&times;</button>';
         html += '</div>';
         return html;
+    }
+
+    // --- Validation rules ---
+
+    function buildValidationUI(el) {
+        var type     = el.input_type;
+        var isText   = TEXT_TYPES.indexOf(type) !== -1;
+        var isNumber = type === 'number';
+        var isDate   = type === 'date';
+        var showBox  = isText || isNumber || isDate;
+
+        var html = '<div class="fm-validation-box" style="' + (showBox ? '' : 'display:none') + '">';
+        html += '<label class="fm-input-label">Restricciones de entrada</label>';
+
+        // Caracteres permitidos (texto)
+        html += '<div class="fm-validation-row fm-vr-format" style="' + (isText ? '' : 'display:none') + '">';
+        html += '<div class="fm-validation-field">';
+        html += '<span class="fm-validation-hint">Caracteres permitidos</span>';
+        html += '<select class="fm-select fm-data-input" data-field="text_format">';
+        for (var fk in TEXT_FORMATS) {
+            html += '<option value="' + fk + '"' + ((el.text_format || 'any') === fk ? ' selected' : '') + '>' + TEXT_FORMATS[fk] + '</option>';
+        }
+        html += '</select>';
+        html += '</div>';
+        html += '</div>';
+
+        // Solo enteros + rango de valores (numero)
+        html += '<div class="fm-validation-row fm-vr-number" style="' + (isNumber ? '' : 'display:none') + '">';
+        html += '<div class="fm-validation-field">';
+        html += '<span class="fm-validation-hint">Valor minimo</span>';
+        html += '<input type="number" class="fm-input fm-data-input" data-field="min_value" value="' + escAttr(el.min_value) + '" placeholder="Sin limite" />';
+        html += '</div>';
+        html += '<div class="fm-validation-field">';
+        html += '<span class="fm-validation-hint">Valor maximo</span>';
+        html += '<input type="number" class="fm-input fm-data-input" data-field="max_value" value="' + escAttr(el.max_value) + '" placeholder="Sin limite" />';
+        html += '</div>';
+        html += '<div class="fm-validation-field">';
+        html += '<label class="fm-required-toggle"><input type="checkbox" class="fm-data-input" data-field="integer_only"' + (el.integer_only ? ' checked' : '') + ' /> Solo numeros enteros</label>';
+        html += '</div>';
+        html += '</div>';
+
+        // Longitud (texto y numero)
+        html += '<div class="fm-validation-row fm-vr-length" style="' + (isText || isNumber ? '' : 'display:none') + '">';
+        html += '<div class="fm-validation-field">';
+        html += '<span class="fm-validation-hint">Longitud minima</span>';
+        html += '<input type="number" class="fm-input fm-data-input" data-field="min_length" value="' + escAttr(el.min_length) + '" min="0" placeholder="Sin minimo" />';
+        html += '</div>';
+        html += '<div class="fm-validation-field">';
+        html += '<span class="fm-validation-hint">Longitud maxima</span>';
+        html += '<input type="number" class="fm-input fm-data-input" data-field="max_length" value="' + escAttr(el.max_length) + '" min="0" placeholder="Sin maximo" />';
+        html += '</div>';
+        html += '</div>';
+
+        // Limites de fecha
+        html += '<div class="fm-validation-row fm-vr-date" style="' + (isDate ? '' : 'display:none') + '">';
+        html += buildDateBoundField('Fecha minima', 'date_min_mode', 'date_min_custom', el.date_min_mode || 'none', el.date_min_custom || '');
+        html += buildDateBoundField('Fecha maxima', 'date_max_mode', 'date_max_custom', el.date_max_mode || 'none', el.date_max_custom || '');
+        html += '</div>';
+
+        // Mensajes de error personalizados por tipo
+        html += '<div class="fm-validation-row fm-vr-format-msg" style="' + (isText ? '' : 'display:none') + '">';
+        html += '<input type="text" class="fm-input fm-data-input" data-field="custom_format_error" value="' + escAttr(el.custom_format_error || '') + '" placeholder="Mensaje de error personalizado (formato o longitud)" />';
+        html += '</div>';
+
+        html += '<div class="fm-validation-row fm-vr-date-msg" style="' + (isDate ? '' : 'display:none') + '">';
+        html += '<input type="text" class="fm-input fm-data-input" data-field="custom_date_error" value="' + escAttr(el.custom_date_error || '') + '" placeholder="Mensaje de error personalizado (fecha fuera de rango)" />';
+        html += '</div>';
+
+        html += '</div>';
+        return html;
+    }
+
+    function buildDateBoundField(label, modeField, customField, modeValue, customValue) {
+        var html = '<div class="fm-validation-field">';
+        html += '<span class="fm-validation-hint">' + label + '</span>';
+        html += '<select class="fm-select fm-data-input fm-date-mode-select" data-field="' + modeField + '">';
+        for (var dk in DATE_MODES) {
+            html += '<option value="' + dk + '"' + (modeValue === dk ? ' selected' : '') + '>' + DATE_MODES[dk] + '</option>';
+        }
+        html += '</select>';
+        html += '<input type="date" class="fm-input fm-data-input fm-date-custom-input" data-field="' + customField + '" value="' + escAttr(customValue) + '" style="' + (modeValue === 'custom' ? 'margin-top:6px' : 'display:none') + '" />';
+        html += '</div>';
+        return html;
+    }
+
+    function toggleValidationUI($el, inputType) {
+        var isText   = TEXT_TYPES.indexOf(inputType) !== -1;
+        var isNumber = inputType === 'number';
+        var isDate   = inputType === 'date';
+
+        $el.find('.fm-validation-box').toggle(isText || isNumber || isDate);
+        $el.find('.fm-vr-format').toggle(isText);
+        $el.find('.fm-vr-format-msg').toggle(isText);
+        $el.find('.fm-vr-number').toggle(isNumber);
+        $el.find('.fm-vr-length').toggle(isText || isNumber);
+        $el.find('.fm-vr-date').toggle(isDate);
+        $el.find('.fm-vr-date-msg').toggle(isDate);
     }
 
     // --- Conditional Logic ---
@@ -747,6 +883,8 @@
         $emailMsgs[inputType === 'email' ? 'slideDown' : 'slideUp'](200);
         $numberMsgs[inputType === 'number' ? 'slideDown' : 'slideUp'](200);
         $fileMsgs[inputType === 'file' ? 'slideDown' : 'slideUp'](200);
+
+        toggleValidationUI($el, inputType);
     }
 
     // --- Media ---
@@ -843,7 +981,7 @@
     // --- Helpers ---
 
     function escAttr(str) {
-        if (!str) return '';
+        if (str === null || str === undefined || str === false) return '';
         return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 

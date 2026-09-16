@@ -345,6 +345,116 @@
         var $submitBtn = $form.find('.fm-btn-submit');
         $submitBtn.data('original-text', $submitBtn.text());
 
+        // --- Input guards (impiden escribir caracteres no permitidos) ---
+
+        // \p{L} necesita el flag "u" (ES2018). Si el navegador no lo soporta,
+        // se cae a un rango latino, en vez de romper todo el script.
+        var SUPPORTS_UNICODE_PROP = (function() {
+            try { new RegExp('\\p{L}', 'u'); return true; } catch (e) { return false; }
+        })();
+        var L = SUPPORTS_UNICODE_PROP ? '\\p{L}' : 'A-Za-z\\u00C0-\\u024F';
+        var UFLAG = SUPPORTS_UNICODE_PROP ? 'u' : '';
+
+        var FORMAT_STRIP = {
+            letters:      new RegExp('[^' + L + '\\s\'.\\-]', 'g' + UFLAG),
+            numbers:      /[^0-9]/g,
+            alphanumeric: new RegExp('[^' + L + '0-9\\s\'.\\-]', 'g' + UFLAG)
+        };
+
+        var FORMAT_TEST = {
+            letters:      new RegExp('^[' + L + '\\s\'.\\-]+$', UFLAG),
+            numbers:      /^[0-9]+$/,
+            alphanumeric: new RegExp('^[' + L + '0-9\\s\'.\\-]+$', UFLAG)
+        };
+
+        var FORMAT_MESSAGES = {
+            letters:      'Este campo solo admite letras.',
+            numbers:      'Este campo solo admite numeros.',
+            alphanumeric: 'Este campo solo admite letras y numeros.'
+        };
+
+        // Recalcula los limites "hoy" en el cliente: la pagina puede venir
+        // de una cache generada otro dia.
+        $form.find('.fm-field[data-type="date"]').each(function() {
+            var $field = $(this);
+            var $input = $field.find('.fm-control');
+            var today = todayISO();
+            if ($field.attr('data-date-min-today') === '1') $input.attr('min', today);
+            if ($field.attr('data-date-max-today') === '1') $input.attr('max', today);
+        });
+
+        $form.on('input', '.fm-control', function() {
+            var $field = $(this).closest('.fm-field');
+            var type = $field.data('type');
+            var original = $(this).val();
+            if (typeof original !== 'string' || original === '') return;
+            var cleaned = original;
+
+            if (type === 'number') {
+                if ($field.attr('data-integer-only') === '1') {
+                    cleaned = cleaned.replace(/[^0-9\-]/g, '').replace(/(?!^)-/g, '');
+                }
+            } else {
+                var format = $field.attr('data-format');
+                if (format && FORMAT_STRIP[format]) {
+                    cleaned = cleaned.replace(FORMAT_STRIP[format], '');
+                }
+            }
+
+            var maxLength = parseInt($field.attr('data-max-length'), 10);
+            if (maxLength > 0) {
+                // input[type=number] ignora maxlength, asi que se recorta aqui.
+                var digits = type === 'number' ? cleaned.replace(/[^0-9]/g, '') : cleaned;
+                if (digits.length > maxLength) {
+                    cleaned = type === 'number'
+                        ? (cleaned.charAt(0) === '-' ? '-' : '') + digits.slice(0, maxLength)
+                        : cleaned.slice(0, maxLength);
+                }
+            }
+
+            if (cleaned !== original) {
+                // selectionStart no existe (o lanza) en number/date segun el navegador.
+                var pos = null;
+                try { pos = this.selectionStart; } catch (err) { pos = null; }
+                $(this).val(cleaned);
+                // Mantener el cursor donde estaba tras quitar caracteres.
+                if (pos !== null && this.type !== 'number' && this.type !== 'date') {
+                    var offset = original.length - cleaned.length;
+                    try { this.setSelectionRange(pos - offset, pos - offset); } catch (err2) {}
+                }
+            }
+        });
+
+        // Bloquear teclas no numericas (incluido "e", "+" de input[type=number])
+        $form.on('keypress', '.fm-control', function(e) {
+            var $field = $(this).closest('.fm-field');
+            var isIntOnly = $field.data('type') === 'number' && $field.attr('data-integer-only') === '1';
+            var isNumFormat = $field.attr('data-format') === 'numbers';
+            if (!isIntOnly && !isNumFormat) return;
+            if (e.ctrlKey || e.metaKey || e.which < 32) return;
+            var ch = String.fromCharCode(e.which);
+
+            // El signo negativo se admite mientras no haya otro ya escrito.
+            // (input[type=number] no expone el caret, asi que no se puede
+            // exigir aqui que vaya al inicio: de eso se encarga el handler
+            // de "input", que descarta cualquier signo mal ubicado.)
+            if (isIntOnly && ch === '-' && (this.value || '').indexOf('-') === -1) return;
+
+            if (!/[0-9]/.test(ch)) e.preventDefault();
+        });
+
+        function todayISO() {
+            var d = new Date();
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + m + '-' + day;
+        }
+
+        function formatDate(iso) {
+            var parts = iso.split('-');
+            return parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : iso;
+        }
+
         // Clear error on input
         $form.on('input change', '.fm-control, .fm-choice input, .fm-file-input', function() {
             $(this).closest('.fm-field').removeClass('has-error')
@@ -671,8 +781,6 @@
                 $field.removeClass('has-error');
                 $errorMsg.hide().text('');
 
-                if (!isRequired) return;
-
                 var value = '';
                 var type = $field.data('type');
 
@@ -688,9 +796,19 @@
                 }
 
                 if (value.trim() === '') {
+                    if (!isRequired) return;
                     $field.addClass('has-error');
                     var customMsg = $field.attr('data-required-msg');
                     $errorMsg.text(customMsg || i18n.required_error || 'Este campo es obligatorio.').show();
+                    valid = false;
+                    return;
+                }
+
+                // Formato, longitud, rango y limites de fecha
+                var constraintError = checkConstraints($field, type, value.trim());
+                if (constraintError) {
+                    $field.addClass('has-error');
+                    $errorMsg.text(constraintError).show();
                     valid = false;
                     return;
                 }
@@ -725,6 +843,82 @@
                 }
             });
             return valid;
+        }
+
+        /**
+         * Reglas de formato, longitud, rango y fecha.
+         * Replica lo que valida el servidor, para avisar antes de enviar.
+         *
+         * @return {string} Mensaje de error, o '' si el valor es valido.
+         */
+        function checkConstraints($field, type, value) {
+            var formatError = $field.attr('data-format-error') || '';
+            var dateError   = $field.attr('data-date-error') || '';
+            var numberError = $field.attr('data-number-error') || '';
+            var minLength   = parseInt($field.attr('data-min-length'), 10);
+            var maxLength   = parseInt($field.attr('data-max-length'), 10);
+            var $control    = $field.find('.fm-control').first();
+
+            if (type === 'date') {
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                    return dateError || 'Ingresa una fecha valida.';
+                }
+                var minDate = $control.attr('min') || '';
+                var maxDate = $control.attr('max') || '';
+                if (minDate && value < minDate) {
+                    return dateError || 'La fecha no puede ser anterior al ' + formatDate(minDate) + '.';
+                }
+                if (maxDate && value > maxDate) {
+                    if (dateError) return dateError;
+                    return maxDate === todayISO()
+                        ? 'No se pueden seleccionar fechas futuras.'
+                        : 'La fecha no puede ser posterior al ' + formatDate(maxDate) + '.';
+                }
+                return '';
+            }
+
+            if (type === 'number') {
+                if ($field.attr('data-integer-only') === '1') {
+                    if (!/^-?[0-9]+$/.test(value)) {
+                        return numberError || 'Ingresa un numero entero, sin letras ni simbolos.';
+                    }
+                } else if (!isFinite(value) || value === '') {
+                    return numberError || 'Ingresa un numero valido.';
+                }
+
+                var minValue = $control.attr('min');
+                var maxValue = $control.attr('max');
+                if (minValue !== undefined && minValue !== '' && parseFloat(value) < parseFloat(minValue)) {
+                    return numberError || 'El valor minimo permitido es ' + minValue + '.';
+                }
+                if (maxValue !== undefined && maxValue !== '' && parseFloat(value) > parseFloat(maxValue)) {
+                    return numberError || 'El valor maximo permitido es ' + maxValue + '.';
+                }
+
+                var digits = value.replace(/[^0-9]/g, '').length;
+                if (minLength > 0 && digits < minLength) {
+                    return numberError || 'Debe tener al menos ' + minLength + ' digitos.';
+                }
+                if (maxLength > 0 && digits > maxLength) {
+                    return numberError || 'No puede superar los ' + maxLength + ' digitos.';
+                }
+                return '';
+            }
+
+            if (type === 'text' || type === 'textarea') {
+                var format = $field.attr('data-format');
+                if (format && FORMAT_TEST[format] && !FORMAT_TEST[format].test(value)) {
+                    return formatError || FORMAT_MESSAGES[format];
+                }
+                if (minLength > 0 && value.length < minLength) {
+                    return formatError || 'Debe tener al menos ' + minLength + ' caracteres.';
+                }
+                if (maxLength > 0 && value.length > maxLength) {
+                    return formatError || 'No puede superar los ' + maxLength + ' caracteres.';
+                }
+            }
+
+            return '';
         }
 
         function validateFiles() {

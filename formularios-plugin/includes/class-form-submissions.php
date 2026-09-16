@@ -131,11 +131,12 @@ class Formularios_Submissions {
                 }
             }
 
-            // Sanitize number type
-            if ( 'number' === $el['input_type'] && '' !== $value ) {
-                if ( ! is_numeric( $value ) ) {
-                    $custom = $el['custom_number_error'] ?? '';
-                    $errors[ $name ] = '' !== $custom ? $custom : 'Ingresa un numero valido.';
+            // Formato, longitud, rango numerico y limites de fecha.
+            // El navegador ya aplica estas reglas, pero se pueden saltear.
+            if ( ! isset( $errors[ $name ] ) ) {
+                $constraint_error = Formularios_Validation::validate( $el, $value );
+                if ( '' !== $constraint_error ) {
+                    $errors[ $name ] = $constraint_error;
                 }
             }
 

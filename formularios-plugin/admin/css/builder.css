@@ -971,3 +971,22 @@
         align-self: flex-end;
     }
 }
+
+/* Consent settings */
+.fm-consent-settings {
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--fm-gray-100);
+}
+
+.fm-consent-settings .fm-textarea,
+.fm-consent-settings .fm-input {
+    width: 100%;
+}
+
+.fm-consent-hint {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--fm-gray-400);
+}

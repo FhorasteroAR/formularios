@@ -119,6 +119,7 @@ class Formularios_Renderer {
                 'file_type_err'          => 'Tipo de archivo no permitido.',
                 'email_confirm_required' => 'Confirma tu email.',
                 'email_mismatch'         => 'Los emails no coinciden.',
+                'consent_error'          => 'Debes aceptar para continuar.',
             ),
         ) );
 
@@ -403,7 +404,7 @@ class Formularios_Renderer {
         ?>
         <div class="fm-field<?php echo $layout_class; ?>"<?php echo $inline_style; ?><?php echo $data_attrs; ?> data-type="<?php echo esc_attr( $el['input_type'] ); ?>">
             <?php
-            $is_group = in_array( $el['input_type'], array( 'radio', 'checkbox' ), true );
+            $is_group = in_array( $el['input_type'], array( 'radio', 'checkbox', 'consent' ), true );
             $label_id = $name . '_label';
             ?>
             <?php if ( ! empty( $el['label'] ) ) : ?>
@@ -482,6 +483,24 @@ class Formularios_Renderer {
                     echo '</label>';
                     echo '<ul class="fm-file-list"></ul>';
                     echo '</div>';
+                    break;
+
+                case 'consent':
+                    $consent_label = $el['consent_label'] ?? '';
+                    if ( '' === $consent_label ) {
+                        $consent_label = Formularios_Validation::default_consent_label();
+                    }
+                    if ( ! empty( $el['consent_text'] ) ) {
+                        // Region con scroll y foco por teclado: la leyenda puede
+                        // ser larga y debe poder leerse sin salir del formulario.
+                        echo '<div class="fm-consent-terms" tabindex="0" role="region" aria-label="Terminos y condiciones">';
+                        echo wpautop( wp_kses_post( $el['consent_text'] ) );
+                        echo '</div>';
+                    }
+                    echo '<label class="fm-choice fm-consent-check" for="' . esc_attr( $name ) . '">';
+                    echo '<input type="checkbox" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" value="1"' . $req_attr . ' />';
+                    echo '<span class="fm-choice-label">' . esc_html( $consent_label ) . $req_mark . '</span>';
+                    echo '</label>';
                     break;
 
                 case 'email':

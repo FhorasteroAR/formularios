@@ -76,6 +76,15 @@ class Formularios_Submissions {
             if ( 'file' === $el['input_type'] ) {
                 // Handle multiple file uploads
                 $value = $this->handle_file_uploads( $name, $el, $errors );
+            } elseif ( 'consent' === $el['input_type'] ) {
+                // Solo se registra la constancia de aceptacion. La leyenda de
+                // terminos no viaja en el POST ni se guarda con la respuesta.
+                $accepted = ! empty( $_POST[ $name ] );
+                $consent_label = $el['consent_label'] ?? '';
+                if ( '' === $consent_label ) {
+                    $consent_label = Formularios_Validation::default_consent_label();
+                }
+                $value = $accepted ? $consent_label : '';
             } elseif ( 'checkbox' === $el['input_type'] ) {
                 $value = isset( $_POST[ $name ] ) && is_array( $_POST[ $name ] )
                     ? array_map( 'sanitize_text_field', $_POST[ $name ] )
@@ -84,8 +93,15 @@ class Formularios_Submissions {
                 $value = isset( $_POST[ $name ] ) ? sanitize_text_field( wp_unslash( $_POST[ $name ] ) ) : '';
             }
 
+            // El consentimiento es obligatorio siempre, se haya guardado o no
+            // con required en el elemento.
+            if ( 'consent' === $el['input_type'] && '' === $value ) {
+                $custom_msg = $el['custom_required_message'] ?? '';
+                $errors[ $name ] = '' !== $custom_msg ? $custom_msg : 'Debes aceptar para continuar.';
+            }
+
             // Validate required (skip files — handled in handle_file_upload)
-            if ( 'file' !== $el['input_type'] && ! empty( $el['required'] ) ) {
+            if ( 'file' !== $el['input_type'] && 'consent' !== $el['input_type'] && ! empty( $el['required'] ) ) {
                 $empty = is_array( $value ) ? empty( $value ) : '' === trim( $value );
                 if ( $empty ) {
                     $custom_msg = $el['custom_required_message'] ?? '';

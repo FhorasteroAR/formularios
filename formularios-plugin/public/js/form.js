@@ -788,6 +788,8 @@
                     value = $field.find('input[type="radio"]:checked').val() || '';
                 } else if (type === 'checkbox') {
                     value = $field.find('input[type="checkbox"]:checked').length > 0 ? 'yes' : '';
+                } else if (type === 'consent') {
+                    value = $field.find('input[type="checkbox"]:checked').length > 0 ? 'yes' : '';
                 } else if (type === 'file') {
                     var fileInput = $field.find('.fm-file-input')[0];
                     value = (fileInput && fileInput.files && fileInput.files.length > 0) ? 'yes' : '';
@@ -799,7 +801,10 @@
                     if (!isRequired) return;
                     $field.addClass('has-error');
                     var customMsg = $field.attr('data-required-msg');
-                    $errorMsg.text(customMsg || i18n.required_error || 'Este campo es obligatorio.').show();
+                    var emptyMsg = type === 'consent'
+                        ? (i18n.consent_error || 'Debes aceptar para continuar.')
+                        : (i18n.required_error || 'Este campo es obligatorio.');
+                    $errorMsg.text(customMsg || emptyMsg).show();
                     valid = false;
                     return;
                 }

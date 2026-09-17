@@ -14,6 +14,15 @@ class Formularios_Validation {
     const DATE_MODES = array( 'none', 'today', 'custom' );
 
     /**
+     * Texto que se guarda como respuesta cuando se acepta un consentimiento.
+     * La leyenda completa de los terminos nunca se guarda ni se envia: en la
+     * respuesta y en el email solo aparece esta constancia de aceptacion.
+     */
+    public static function default_consent_label() {
+        return 'He leído y acepto la declaración de privacidad.';
+    }
+
+    /**
      * Tipos de pregunta que aceptan reglas de formato y longitud.
      */
     public static function supports_format( $input_type ) {

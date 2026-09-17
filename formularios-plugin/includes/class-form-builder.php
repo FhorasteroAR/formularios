@@ -335,6 +335,18 @@ class Formularios_Builder {
                     $item['custom_file_size_error']        = sanitize_text_field( $el['custom_file_size_error'] ?? '' );
                     $item['custom_file_type_error']        = sanitize_text_field( $el['custom_file_type_error'] ?? '' );
                     $item['placeholder']    = sanitize_text_field( $el['placeholder'] ?? '' );
+
+                    // Consentimiento: la leyenda admite formato basico; el texto
+                    // del check es lo unico que se guarda como respuesta.
+                    $item['consent_text']  = wp_kses_post( $el['consent_text'] ?? '' );
+                    $item['consent_label'] = sanitize_text_field( $el['consent_label'] ?? '' );
+                    if ( 'consent' === $item['input_type'] ) {
+                        if ( '' === $item['consent_label'] ) {
+                            $item['consent_label'] = Formularios_Validation::default_consent_label();
+                        }
+                        // Un consentimiento opcional no serviria de nada.
+                        $item['required'] = true;
+                    }
                     $allowed_layouts        = array( 'full', 'half', 'third', 'quarter', 'two_thirds', 'custom' );
                     $item['layout']         = in_array( $el['layout'] ?? '', $allowed_layouts, true ) ? $el['layout'] : 'full';
                     $item['custom_width']   = preg_match( '/^\d+(\.\d+)?\s*(px|%|fr|em|rem|vw)$/', trim( $el['custom_width'] ?? '' ) ) ? trim( $el['custom_width'] ) : '';

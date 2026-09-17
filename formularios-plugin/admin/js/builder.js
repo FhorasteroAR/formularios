@@ -13,8 +13,11 @@
         select:   'Desplegable',
         radio:    'Opcion multiple',
         checkbox: 'Casillas de verificacion',
-        file:     'Subida de archivo'
+        file:     'Subida de archivo',
+        consent:  'Consentimiento (terminos y condiciones)'
     };
+
+    var DEFAULT_CONSENT_LABEL = 'He le\u00eddo y acepto la declaraci\u00f3n de privacidad.';
 
     var LAYOUT_OPTIONS = {
         full:    'Completo',
@@ -66,6 +69,9 @@
                             }
                             return opt;
                         });
+                    }
+                    if (el.type === 'question' && el.input_type === 'consent') {
+                        el.required = true;
                     }
                     if (el.type === 'section' && !el.conditional_logic) {
                         el.conditional_logic = { enabled: false, match: 'any', rules: [] };
@@ -309,6 +315,8 @@
                     custom_date_error: '',
                     custom_file_size_error: '',
                     custom_file_type_error: '',
+                    consent_text: '',
+                    consent_label: DEFAULT_CONSENT_LABEL,
                     text_format: 'any',
                     min_length: '',
                     max_length: '',
@@ -452,10 +460,12 @@
                     html += '<option value="' + key + '"' + (el.input_type === key ? ' selected' : '') + '>' + QUESTION_TYPES[key] + '</option>';
                 }
                 html += '</select>';
-                html += '<input type="text" class="fm-input fm-data-input" data-field="placeholder" value="' + escAttr(el.placeholder) + '" placeholder="' + escAttr(formularios.i18n.placeholder_txt) + '" style="flex:1" />';
-                html += '<label class="fm-required-toggle"><input type="checkbox" class="fm-data-input fm-required-checkbox" data-field="required"' + (el.required ? ' checked' : '') + ' /> ' + formularios.i18n.required + '</label>';
+                html += '<input type="text" class="fm-input fm-data-input fm-placeholder-input" data-field="placeholder" value="' + escAttr(el.placeholder) + '" placeholder="' + escAttr(formularios.i18n.placeholder_txt) + '" style="' + (el.input_type === 'consent' ? 'display:none' : 'flex:1') + '" />';
+                var isConsentEl = (el.input_type === 'consent');
+                var isRequiredEl = el.required || isConsentEl;
+                html += '<label class="fm-required-toggle"' + (isConsentEl ? ' style="display:none"' : '') + '><input type="checkbox" class="fm-data-input fm-required-checkbox" data-field="required"' + (isRequiredEl ? ' checked' : '') + ' /> ' + formularios.i18n.required + '</label>';
                 html += '</div>';
-                html += '<div class="fm-custom-required-msg-row" style="' + (el.required ? '' : 'display:none') + '">';
+                html += '<div class="fm-custom-required-msg-row" style="' + (isRequiredEl ? '' : 'display:none') + '">';
                 html += '<input type="text" class="fm-input fm-data-input" data-field="custom_required_message" value="' + escAttr(el.custom_required_message || '') + '" placeholder="Mensaje de error personalizado (ej: Por favor completa este campo)" />';
                 html += '</div>';
 
@@ -512,6 +522,16 @@
                 html += '<input type="number" class="fm-input fm-data-input" data-field="max_size" value="' + escAttr(el.max_size || '5') + '" min="1" max="50" style="max-width:100px" />';
                 html += '</div>';
                 html += '</div>';
+                html += '</div>';
+
+                // Consent settings (terms text + acceptance label)
+                var showConsent = (el.input_type === 'consent');
+                html += '<div class="fm-consent-settings" style="' + (showConsent ? '' : 'display:none') + '">';
+                html += '<label class="fm-input-label">Texto de los terminos y condiciones</label>';
+                html += '<textarea class="fm-textarea fm-data-input" data-field="consent_text" rows="6" placeholder="Pega aqui la leyenda completa de los terminos y condiciones o la declaracion de privacidad...">' + escHtml(el.consent_text || '') + '</textarea>';
+                html += '<label class="fm-input-label" style="margin-top:10px">Texto del check de aceptacion</label>';
+                html += '<input type="text" class="fm-input fm-data-input" data-field="consent_label" value="' + escAttr(el.consent_label || DEFAULT_CONSENT_LABEL) + '" placeholder="' + escAttr(DEFAULT_CONSENT_LABEL) + '" />';
+                html += '<p class="fm-consent-hint">Este es el texto que se guarda y se envia por email al aceptar. La leyenda completa no se incluye en el email.</p>';
                 html += '</div>';
 
                 // Validation rules (format / length / range / date limits)
@@ -885,6 +905,18 @@
         $fileMsgs[inputType === 'file' ? 'slideDown' : 'slideUp'](200);
 
         toggleValidationUI($el, inputType);
+
+        // El consentimiento siempre es obligatorio: se fuerza el check y se
+        // oculta el toggle para que no quede un campo que se pueda saltear.
+        var isConsent = (inputType === 'consent');
+        $el.find('.fm-consent-settings')[isConsent ? 'slideDown' : 'slideUp'](200);
+        // Un consentimiento no tiene campo donde escribir: sobra el placeholder.
+        $el.find('.fm-placeholder-input').toggle(!isConsent).css('flex', isConsent ? '' : '1');
+        $el.find('.fm-required-toggle').toggle(!isConsent);
+        if (isConsent) {
+            var $req = $el.find('.fm-required-checkbox');
+            if (!$req.is(':checked')) $req.prop('checked', true).trigger('change');
+        }
     }
 
     // --- Media ---

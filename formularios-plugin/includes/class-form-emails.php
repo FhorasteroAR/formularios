@@ -78,42 +78,28 @@ class Formularios_Emails {
         $h .= '<p style="color:rgba(255,255,255,0.75);margin:0;font-size:14px;font-weight:400;">' . esc_html( $form_title ) . '</p>';
         $h .= '</td></tr>';
 
-        // Body — stacked label/value fields
-        $h .= '<tr><td style="padding:28px;">';
+        // Body — short fields side by side (3 per row), long fields full width
+        $h .= '<tr><td style="padding:20px 28px;">';
+        $h .= '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout:fixed;">';
 
-        $total  = count( $submission );
-        $idx    = 0;
+        $cols = 3;
+        $row  = array();
         foreach ( $submission as $field ) {
-            $idx++;
-            $label = esc_html( $field['label'] ?: $field['id'] );
-            $is_file = ( 'file' === ( $field['type'] ?? '' ) );
-            $is_last = ( $idx === $total );
-
-            // Field wrapper
-            $border = $is_last ? '' : 'border-bottom:1px solid #f3f4f6;';
-            $h .= '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="' . $border . 'margin-bottom:' . ( $is_last ? '0' : '16px' ) . ';padding-bottom:' . ( $is_last ? '0' : '16px' ) . ';">';
-            $h .= '<tr><td>';
-
-            // Label
-            $h .= '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;margin-bottom:6px;line-height:1.4;">' . $label . '</div>';
-
-            // Value
-            if ( $is_file ) {
-                $h .= $this->render_file_value( $field['value'] );
-            } else {
-                $value = $field['value'];
-                if ( is_array( $value ) ) {
-                    $value = implode( ', ', $value );
-                }
-                if ( '' === $value ) {
-                    $value = "\xE2\x80\x94";
-                }
-                $h .= '<div style="font-size:15px;color:#1f2937;line-height:1.6;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;">' . nl2br( esc_html( $value ) ) . '</div>';
+            if ( $this->is_wide_field( $field ) ) {
+                $h  .= $this->render_field_row( $row, $cols );
+                $row = array();
+                $h  .= '<tr><td colspan="' . $cols . '" style="padding:8px 6px;border-bottom:1px solid #f3f4f6;vertical-align:top;">' . $this->render_field( $field ) . '</td></tr>';
+                continue;
             }
-
-            $h .= '</td></tr></table>';
+            $row[] = $field;
+            if ( count( $row ) === $cols ) {
+                $h  .= $this->render_field_row( $row, $cols );
+                $row = array();
+            }
         }
+        $h .= $this->render_field_row( $row, $cols );
 
+        $h .= '</table>';
         $h .= '</td></tr>';
 
         // Footer
@@ -125,6 +111,62 @@ class Formularios_Emails {
         $h .= '</table>';
         $h .= '</td></tr></table>';
         $h .= '</body></html>';
+
+        return $h;
+    }
+
+    /**
+     * Whether a field needs the full row width (long text, files, lists).
+     */
+    private function is_wide_field( $field ) {
+        $type = $field['type'] ?? '';
+        if ( in_array( $type, array( 'file', 'textarea' ), true ) ) {
+            return true;
+        }
+        $value = is_array( $field['value'] ) ? implode( ', ', $field['value'] ) : (string) $field['value'];
+        $label = (string) ( $field['label'] ?: $field['id'] );
+        return mb_strlen( $value ) > 30 || mb_strlen( $label ) > 40 || false !== strpos( $value, "\n" );
+    }
+
+    /**
+     * Render a table row with up to $cols short fields side by side.
+     */
+    private function render_field_row( $fields, $cols ) {
+        if ( empty( $fields ) ) return '';
+
+        $width = floor( 100 / $cols );
+        $h     = '<tr>';
+        foreach ( $fields as $field ) {
+            $h .= '<td width="' . $width . '%" style="padding:8px 6px;border-bottom:1px solid #f3f4f6;vertical-align:top;">' . $this->render_field( $field ) . '</td>';
+        }
+        $remaining = $cols - count( $fields );
+        if ( $remaining > 0 ) {
+            $h .= '<td colspan="' . $remaining . '" style="border-bottom:1px solid #f3f4f6;">&nbsp;</td>';
+        }
+        $h .= '</tr>';
+
+        return $h;
+    }
+
+    /**
+     * Render a single label/value block.
+     */
+    private function render_field( $field ) {
+        $label = esc_html( $field['label'] ?: $field['id'] );
+        $h     = '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;margin-bottom:3px;line-height:1.3;">' . $label . '</div>';
+
+        if ( 'file' === ( $field['type'] ?? '' ) ) {
+            return $h . $this->render_file_value( $field['value'] );
+        }
+
+        $value = $field['value'];
+        if ( is_array( $value ) ) {
+            $value = implode( ', ', $value );
+        }
+        if ( '' === $value ) {
+            $value = "\xE2\x80\x94";
+        }
+        $h .= '<div style="font-size:14px;color:#1f2937;line-height:1.4;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;">' . nl2br( esc_html( $value ) ) . '</div>';
 
         return $h;
     }

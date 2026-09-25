@@ -32,6 +32,14 @@ class Formularios_Builder {
             true
         );
 
+        wp_enqueue_script(
+            'formularios-admin-emails',
+            FORMULARIOS_URL . 'admin/js/emails.js',
+            array( 'jquery', 'formularios-admin' ),
+            FORMULARIOS_VERSION,
+            true
+        );
+
         // Build sections list from current post for conditional logic
         $sections = array();
         if ( isset( $_GET['post'] ) ) {
@@ -114,6 +122,12 @@ class Formularios_Builder {
         $elements = get_post_meta( $post->ID, '_formularios_elements', true );
         $elements = $elements ? $elements : array();
         ?>
+        <nav class="fm-tabs" role="tablist">
+            <button type="button" class="fm-tab is-active" role="tab" data-tab="builder">Constructor</button>
+            <button type="button" class="fm-tab" role="tab" data-tab="emails">Emails de confirmacion</button>
+        </nav>
+
+        <div class="fm-tab-panel is-active" data-panel="builder">
         <div id="formularios-builder-wrap">
             <div id="formularios-canvas" data-elements="<?php echo esc_attr( wp_json_encode( $elements ) ); ?>">
                 <div id="formularios-elements-list" class="formularios-sortable"></div>
@@ -151,6 +165,11 @@ class Formularios_Builder {
                     <span class="fmenu-label">Seccion</span>
                 </button>
             </div>
+        </div>
+        </div>
+
+        <div class="fm-tab-panel" data-panel="emails">
+            <?php $this->render_emails_tab( $post ); ?>
         </div>
 
         <input type="hidden" id="formularios-data" name="formularios_elements" value="<?php echo esc_attr( wp_json_encode( $elements ) ); ?>" />
@@ -246,21 +265,121 @@ class Formularios_Builder {
             </p>
             <hr>
             <p>
-                <label>Enviar notificacion por email a (uno por linea)</label>
-                <textarea name="formularios_settings[notify_admin]" class="widefat" rows="3" placeholder="admin@ejemplo.com"><?php echo esc_textarea( $settings['notify_admin'] ); ?></textarea>
-                <small style="color:#6B7280;">Direcciones de email que recibiran una copia de cada respuesta.</small>
-            </p>
-            <p>
-                <label>
-                    <input type="checkbox" name="formularios_settings[notify_respondent]" value="1" <?php checked( $settings['notify_respondent'], '1' ); ?> />
-                    Enviar copia al encuestado (si el formulario tiene campo de email)
-                </label>
+                <small style="color:#6B7280;">Los destinatarios y el contenido de los emails se configuran en la solapa <strong>Emails de confirmacion</strong>.</small>
             </p>
             <hr>
             <p>
                 <label>Shortcode</label>
                 <code style="display:block;padding:8px;background:#f0f0f1;margin-top:4px;">[formulario id="<?php echo esc_attr( $post->ID ); ?>"]</code>
             </p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Solapa para editar los emails de confirmacion: uno para quien completa
+     * el formulario y otro para los destinatarios de las notificaciones.
+     */
+    private function render_emails_tab( $post ) {
+        $settings = get_post_meta( $post->ID, '_formularios_settings', true );
+        $settings = is_array( $settings ) ? $settings : array();
+        $config   = Formularios_Emails::get_config( $post->ID );
+
+        $blocks = array(
+            'respondent' => array(
+                'title' => 'Email al usuario que completa',
+                'desc'  => 'Se envia a la direccion ingresada en el primer campo de tipo Email del formulario.',
+            ),
+            'admin' => array(
+                'title' => 'Email a los destinatarios',
+                'desc'  => 'Notificacion que reciben las direcciones configuradas con cada nueva respuesta.',
+            ),
+        );
+        ?>
+        <div class="fm-emails">
+            <div class="fm-emails-vars">
+                <strong>Variables disponibles</strong>
+                <span class="fm-emails-vars-hint">Hace clic para insertarlas en el campo seleccionado.</span>
+                <div class="fm-emails-chips">
+                    <button type="button" class="fm-chip" data-var="{formulario}">Nombre del formulario</button>
+                    <button type="button" class="fm-chip" data-var="{numero}">N° de respuesta</button>
+                    <button type="button" class="fm-chip" data-var="{fecha}">Fecha</button>
+                    <button type="button" class="fm-chip" data-var="{sitio}">Nombre del sitio</button>
+                    <span class="fm-emails-field-chips"></span>
+                </div>
+            </div>
+
+            <?php foreach ( $blocks as $key => $block ) :
+                $mail = $config[ $key ];
+                $name = 'formularios_emails[' . $key . ']';
+                ?>
+                <section class="fm-email-card" data-email="<?php echo esc_attr( $key ); ?>">
+                    <header class="fm-email-card-head">
+                        <div>
+                            <h3><?php echo esc_html( $block['title'] ); ?></h3>
+                            <p><?php echo esc_html( $block['desc'] ); ?></p>
+                        </div>
+                        <button type="button" class="button fm-email-preview-btn">Vista previa</button>
+                    </header>
+
+                    <?php if ( 'respondent' === $key ) : ?>
+                        <p>
+                            <label>
+                                <input type="checkbox" name="formularios_settings[notify_respondent]" value="1" <?php checked( $settings['notify_respondent'] ?? '0', '1' ); ?> />
+                                Enviar copia al usuario (si el formulario tiene campo de email)
+                            </label>
+                        </p>
+                    <?php else : ?>
+                        <p>
+                            <label>Destinatarios (uno por linea)</label>
+                            <textarea name="formularios_settings[notify_admin]" class="widefat" rows="3" placeholder="admin@ejemplo.com"><?php echo esc_textarea( $settings['notify_admin'] ?? '' ); ?></textarea>
+                        </p>
+                    <?php endif; ?>
+
+                    <p>
+                        <label>Asunto</label>
+                        <input type="text" class="widefat fm-email-input" data-key="subject" name="<?php echo esc_attr( $name ); ?>[subject]" value="<?php echo esc_attr( $mail['subject'] ); ?>" />
+                    </p>
+                    <p>
+                        <label>Titulo del encabezado</label>
+                        <input type="text" class="widefat fm-email-input" data-key="heading" name="<?php echo esc_attr( $name ); ?>[heading]" value="<?php echo esc_attr( $mail['heading'] ); ?>" />
+                    </p>
+                    <p>
+                        <label>Mensaje (opcional, se muestra antes de las respuestas; admite HTML basico)</label>
+                        <textarea class="widefat fm-email-input" data-key="intro" name="<?php echo esc_attr( $name ); ?>[intro]" rows="5"><?php echo esc_textarea( $mail['intro'] ); ?></textarea>
+                    </p>
+                    <p>
+                        <label>Pie del email</label>
+                        <textarea class="widefat fm-email-input" data-key="footer" name="<?php echo esc_attr( $name ); ?>[footer]" rows="2"><?php echo esc_textarea( $mail['footer'] ); ?></textarea>
+                    </p>
+                    <div class="fm-email-row">
+                        <label class="fm-email-inline">
+                            Color del encabezado
+                            <input type="color" class="fm-email-input" data-key="header_color" name="<?php echo esc_attr( $name ); ?>[header_color]" value="<?php echo esc_attr( $mail['header_color'] ); ?>" />
+                        </label>
+                        <label class="fm-email-inline">
+                            <input type="checkbox" class="fm-email-input" data-key="include_answers" name="<?php echo esc_attr( $name ); ?>[include_answers]" value="1" <?php checked( $mail['include_answers'], '1' ); ?> />
+                            Incluir las respuestas<?php echo 'respondent' === $key ? ' y archivos adjuntos' : ''; ?>
+                        </label>
+                        <?php if ( 'admin' === $key ) : ?>
+                            <label class="fm-email-inline">
+                                <input type="checkbox" class="fm-email-input" data-key="reply_to" name="<?php echo esc_attr( $name ); ?>[reply_to]" value="1" <?php checked( $mail['reply_to'], '1' ); ?> />
+                                Responder al email del usuario (Reply-To)
+                            </label>
+                        <?php endif; ?>
+                    </div>
+                </section>
+            <?php endforeach; ?>
+
+            <div class="fm-email-modal" hidden>
+                <div class="fm-email-modal-box">
+                    <div class="fm-email-modal-head">
+                        <div><span>Asunto:</span> <strong class="fm-email-modal-subject"></strong></div>
+                        <button type="button" class="button fm-email-modal-close">Cerrar</button>
+                    </div>
+                    <iframe class="fm-email-modal-frame" title="Vista previa del email"></iframe>
+                </div>
+            </div>
         </div>
         <?php
     }
@@ -306,6 +425,10 @@ class Formularios_Builder {
                 'notify_respondent' => isset( $raw['notify_respondent'] ) ? '1' : '0',
             );
             update_post_meta( $post_id, '_formularios_settings', $settings );
+        }
+
+        if ( isset( $_POST['formularios_emails'] ) && is_array( $_POST['formularios_emails'] ) ) {
+            update_post_meta( $post_id, '_formularios_emails', Formularios_Emails::sanitize_config( $_POST['formularios_emails'] ) );
         }
     }
 

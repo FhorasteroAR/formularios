@@ -191,12 +191,18 @@ class Formularios_Builder {
             'form_width'        => 'medium',
             'notify_admin'      => '',
             'notify_respondent' => '0',
+            'code_prefix'       => '',
         ) );
         ?>
         <div class="formularios-settings-panel">
             <p>
                 <label>Texto del boton de envio</label>
                 <input type="text" name="formularios_settings[submit_text]" value="<?php echo esc_attr( $settings['submit_text'] ); ?>" class="widefat" />
+            </p>
+            <p>
+                <label for="fm-code-prefix">Prefijo del codigo de seguimiento</label>
+                <input type="text" id="fm-code-prefix" name="formularios_settings[code_prefix]" value="<?php echo esc_attr( $settings['code_prefix'] ); ?>" class="widefat" maxlength="5" placeholder="<?php echo esc_attr( Formularios_Tracking::DEFAULT_PREFIX ); ?>" style="text-transform:uppercase" />
+                <span class="description">De 2 a 5 letras (ej.: ROG). Cada respuesta tendra un codigo como <strong><?php echo esc_html( Formularios_Tracking::get_prefix( $post->ID ) ); ?>-<?php echo esc_html( current_time( 'Y' ) ); ?>-000123</strong>.</span>
             </p>
             <p>
                 <label>Mensaje de exito</label>
@@ -303,6 +309,7 @@ class Formularios_Builder {
                 <div class="fm-emails-chips">
                     <button type="button" class="fm-chip" data-var="{formulario}">Nombre del formulario</button>
                     <button type="button" class="fm-chip" data-var="{numero}">N° de respuesta</button>
+                    <button type="button" class="fm-chip" data-var="{codigo}">Codigo de seguimiento</button>
                     <button type="button" class="fm-chip" data-var="{fecha}">Fecha</button>
                     <button type="button" class="fm-chip" data-var="{sitio}">Nombre del sitio</button>
                     <span class="fm-emails-field-chips"></span>
@@ -423,6 +430,7 @@ class Formularios_Builder {
                 'form_width'        => in_array( $raw['form_width'] ?? '', $allowed_width, true ) ? $raw['form_width'] : 'medium',
                 'notify_admin'      => sanitize_textarea_field( $raw['notify_admin'] ?? '' ),
                 'notify_respondent' => isset( $raw['notify_respondent'] ) ? '1' : '0',
+                'code_prefix'       => Formularios_Tracking::sanitize_prefix( $raw['code_prefix'] ?? '' ),
             );
             update_post_meta( $post_id, '_formularios_settings', $settings );
         }

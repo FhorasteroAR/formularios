@@ -21,7 +21,31 @@
         if (!headers.length) return;
         buildHeader();
         applyFilters();
+        openFromCodeSearch();
     });
+
+    // Si se llego desde la busqueda por codigo, abre esa respuesta directamente.
+    function openFromCodeSearch() {
+        var openId = parseInt(fmSubmissions.open_id, 10);
+        if (!openId) return;
+
+        var row = null;
+        for (var i = 0; i < allRows.length; i++) {
+            if (allRows[i].id === openId) { row = allRows[i]; break; }
+        }
+        if (!row) return;
+
+        var idx = filtered.indexOf(row);
+        if (idx !== -1) {
+            page = Math.floor(idx / pageSize) + 1;
+            renderTable();
+        }
+
+        detailRow = row;
+        $('.fm-row[data-id="' + row.id + '"]').addClass('fm-row-active');
+        renderDetail(row, allRows.indexOf(row) + 1);
+        openPanel();
+    }
 
     // --- Build Table Header ---
 
@@ -31,6 +55,7 @@
 
         $row.append('<th class="fm-th-check"><input type="checkbox" id="fm-check-all" /></th>');
         $row.append('<th class="fm-th-num">#</th>');
+        $row.append('<th class="fm-th-code">C\u00f3digo</th>');
 
         var visibleCount = Math.min(headers.length, 4);
         for (var i = 0; i < visibleCount; i++) {
@@ -85,6 +110,7 @@
                         break;
                     }
                 }
+                if (!match && (row.code || '').toLowerCase().indexOf(search) !== -1) match = true;
                 if (!match && (row.ip || '').toLowerCase().indexOf(search) !== -1) match = true;
                 if (!match && (row.date || '').toLowerCase().indexOf(search) !== -1) match = true;
                 if (!match) continue;
@@ -111,7 +137,7 @@
         var visibleCount = Math.min(headers.length, 4);
 
         if (filtered.length === 0) {
-            var colSpan = visibleCount + 5;
+            var colSpan = visibleCount + 6;
             $tbody.append(
                 '<tr><td colspan="' + colSpan + '" class="fm-table-empty">' +
                 '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
@@ -131,6 +157,9 @@
 
                 // Number
                 $tr.append('<td class="fm-td-num">' + globalIdx + '</td>');
+
+                // Codigo de seguimiento
+                $tr.append('<td class="fm-td-code">' + esc(row.code || '') + '</td>');
 
                 // Field columns
                 for (var c = 0; c < visibleCount; c++) {
@@ -361,7 +390,7 @@
     }
 
     function renderDetail(row, num) {
-        $('#fm-detail-num').text('#' + num);
+        $('#fm-detail-num').text(row.code ? row.code : '#' + num);
         var $body = $('#fm-detail-body').empty();
 
         for (var i = 0; i < headers.length; i++) {

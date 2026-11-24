@@ -190,6 +190,7 @@ class Formularios_Submissions {
         if ( false === $inserted ) {
             wp_send_json_error( 'Error al guardar la respuesta. Intenta de nuevo.' );
         }
+        $submission_id = (int) $wpdb->insert_id;
 
         // Sequential submission number for this form
         $submission_number = (int) $wpdb->get_var( $wpdb->prepare(
@@ -208,9 +209,10 @@ class Formularios_Submissions {
          * @param array $submission         The sanitized submission data.
          * @param array $elements           The form elements definition.
          * @param int   $submission_number  Sequential submission number for this form.
+         * @param int   $submission_id      Row ID of the stored submission (used for the tracking code).
          */
         try {
-            do_action( 'formularios_after_submission', $form_id, $submission, $elements, $submission_number );
+            do_action( 'formularios_after_submission', $form_id, $submission, $elements, $submission_number, $submission_id );
         } catch ( \Throwable $e ) {
             error_log( 'Formularios: post-submission hook error — ' . $e->getMessage() );
         }

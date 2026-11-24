@@ -5,6 +5,7 @@ class Formularios_Submissions_Page {
 
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
+        add_action( 'admin_init', array( $this, 'maybe_redirect_code_search' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'wp_ajax_formularios_export_submissions', array( $this, 'ajax_export_csv' ) );
         add_action( 'wp_ajax_formularios_export_submissions_pdf', array( $this, 'ajax_export_pdf' ) );
@@ -19,6 +20,33 @@ class Formularios_Submissions_Page {
             'formularios-submissions',
             array( $this, 'render_page' )
         );
+    }
+
+    /**
+     * Busqueda global por codigo de seguimiento: lleva a la pestana del formulario
+     * correcto y abre la respuesta. Si no existe, vuelve con un aviso.
+     */
+    public function maybe_redirect_code_search() {
+        if ( 'formularios-submissions' !== ( $_GET['page'] ?? '' ) || empty( $_GET['code'] ) ) {
+            return;
+        }
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            return;
+        }
+
+        $code = sanitize_text_field( wp_unslash( $_GET['code'] ) );
+        $base = admin_url( 'edit.php?post_type=formulario&page=formularios-submissions' );
+        $row  = Formularios_Tracking::find_submission( $code );
+
+        if ( $row ) {
+            wp_safe_redirect( add_query_arg( array(
+                'form_id' => (int) $row->form_id,
+                'open'    => (int) $row->id,
+            ), $base ) );
+        } else {
+            wp_safe_redirect( add_query_arg( 'code_error', rawurlencode( $code ), $base ) );
+        }
+        exit;
     }
 
     private function get_form_headers( $form_id ) {
@@ -101,6 +129,7 @@ class Formularios_Submissions_Page {
 
                 $rows[] = array(
                     'id'         => (int) $row->id,
+                    'code'       => Formularios_Tracking::format( (int) $row->form_id, (int) $row->id, $row->submitted_at ),
                     'fields'     => (object) $fields,
                     'date'       => $row->submitted_at,
                     'ip'         => $row->ip_address,
@@ -115,6 +144,7 @@ class Formularios_Submissions_Page {
             'rows'     => $rows,
             'headers'  => $headers,
             'form_id'  => $active_form_id,
+            'open_id'  => isset( $_GET['open'] ) ? absint( $_GET['open'] ) : 0,
         ) );
     }
 
@@ -335,7 +365,20 @@ class Formularios_Submissions_Page {
         <div class="wrap fm-submissions-wrap">
             <div class="fm-sub-top-bar">
                 <h1 class="wp-heading-inline">Respuestas</h1>
+                <form method="get" action="<?php echo esc_url( admin_url( 'edit.php' ) ); ?>" class="fm-code-search" role="search">
+                    <input type="hidden" name="post_type" value="formulario" />
+                    <input type="hidden" name="page" value="formularios-submissions" />
+                    <label for="fm-code-input" class="screen-reader-text">Buscar por c&oacute;digo de seguimiento</label>
+                    <input type="search" id="fm-code-input" name="code" class="fm-code-input" placeholder="C&oacute;digo de seguimiento (ej.: ROG-<?php echo esc_attr( current_time( 'Y' ) ); ?>-000123)" value="" autocomplete="off" />
+                    <button type="submit" class="button button-primary">Buscar c&oacute;digo</button>
+                </form>
             </div>
+
+            <?php if ( ! empty( $_GET['code_error'] ) ) : ?>
+                <div class="notice notice-warning inline" role="alert">
+                    <p>No se encontr&oacute; ninguna respuesta con el c&oacute;digo <strong><?php echo esc_html( sanitize_text_field( rawurldecode( wp_unslash( $_GET['code_error'] ) ) ) ); ?></strong>. Revise que est&eacute; escrito completo (por ejemplo, ROG-<?php echo esc_html( current_time( 'Y' ) ); ?>-000123).</p>
+                </div>
+            <?php endif; ?>
 
             <?php if ( empty( $forms ) ) : ?>
                 <div class="fm-submissions-empty">

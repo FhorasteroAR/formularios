@@ -20,6 +20,7 @@
     $(document).ready(function() {
         if (!headers.length) return;
         buildHeader();
+        buildAdvancedFilters();
         applyFilters();
         openFromCodeSearch();
     });
@@ -67,11 +68,137 @@
         $row.append('<th class="fm-th-arrow"></th>');
     }
 
+    // --- Advanced filters (rango de fechas, campos de opcion, adjuntos) ---
+
+    var choiceFilters  = [];   // [{id, label, values[]}]
+    var fileHeaderIds  = [];
+
+    function collectFilterOptions() {
+        choiceFilters = [];
+        fileHeaderIds = [];
+
+        for (var i = 0; i < headers.length; i++) {
+            var h = headers[i];
+            if (h.type === 'file') { fileHeaderIds.push(h.id); continue; }
+            if (h.type !== 'select' && h.type !== 'radio' && h.type !== 'checkbox') continue;
+
+            var seen = {};
+            var vals = [];
+            for (var r = 0; r < allRows.length; r++) {
+                var raw  = allRows[r].fields ? allRows[r].fields[h.id] : '';
+                var list = Array.isArray(raw) ? raw : [raw];
+                for (var k = 0; k < list.length; k++) {
+                    var v = (list[k] === null || list[k] === undefined) ? '' : String(list[k]).trim();
+                    if (v && !seen[v]) { seen[v] = true; vals.push(v); }
+                }
+            }
+            // Solo si hay opciones y la lista es razonable para un desplegable.
+            if (vals.length >= 1 && vals.length <= 30) {
+                vals.sort(function(a, b) { return a.localeCompare(b); });
+                choiceFilters.push({ id: h.id, label: h.label, values: vals });
+            }
+        }
+    }
+
+    function buildAdvancedFilters() {
+        var $toolbar = $('.fm-toolbar');
+        if (!$toolbar.length) return;
+
+        collectFilterOptions();
+
+        var html = '<div id="fm-filters-panel" class="fm-filters-panel" hidden>';
+        html += '<div class="fm-filter-field"><label for="fm-date-from">Desde</label>' +
+                '<input type="date" id="fm-date-from" class="fm-filter-input" /></div>';
+        html += '<div class="fm-filter-field"><label for="fm-date-to">Hasta</label>' +
+                '<input type="date" id="fm-date-to" class="fm-filter-input" /></div>';
+
+        for (var i = 0; i < choiceFilters.length; i++) {
+            var cf = choiceFilters[i];
+            html += '<div class="fm-filter-field"><label for="fm-fc-' + i + '">' + esc(cf.label) + '</label>' +
+                    '<select id="fm-fc-' + i + '" class="fm-filter-select fm-choice-filter" data-field="' + escAttr(cf.id) + '">' +
+                    '<option value="">Todos</option>';
+            for (var j = 0; j < cf.values.length; j++) {
+                html += '<option value="' + escAttr(cf.values[j]) + '">' + esc(cf.values[j]) + '</option>';
+            }
+            html += '</select></div>';
+        }
+
+        if (fileHeaderIds.length) {
+            html += '<div class="fm-filter-field fm-filter-check"><label>' +
+                    '<input type="checkbox" id="fm-only-files" /> Solo con archivos adjuntos</label></div>';
+        }
+        html += '</div>';
+        $toolbar.after(html);
+
+        $('#fm-date-filter').after(
+            '<button type="button" id="fm-filters-toggle" class="button fm-filters-toggle" aria-expanded="false" aria-controls="fm-filters-panel">' +
+            'Más filtros <span id="fm-filters-badge" class="fm-filters-badge" hidden></span></button>' +
+            '<button type="button" id="fm-clear-filters" class="button fm-clear-filters" hidden>Limpiar filtros</button>'
+        );
+
+        // El total de resultados se anuncia a lectores de pantalla al filtrar.
+        $('#fm-table-info').attr('aria-live', 'polite');
+    }
+
+    function getAdvancedFilters() {
+        var choices = [];
+        $('.fm-choice-filter').each(function() {
+            var v = $(this).val();
+            if (v) choices.push({ id: $(this).attr('data-field'), val: v });
+        });
+        return {
+            from:      $('#fm-date-from').val() || '',
+            to:        $('#fm-date-to').val() || '',
+            choices:   choices,
+            onlyFiles: $('#fm-only-files').is(':checked')
+        };
+    }
+
+    function rowHasFiles(row) {
+        for (var i = 0; i < fileHeaderIds.length; i++) {
+            var raw = row.fields ? row.fields[fileHeaderIds[i]] : '';
+            if (Array.isArray(raw) ? raw.length : raw) return true;
+        }
+        return false;
+    }
+
+    function rowMatchesChoice(row, sel) {
+        var raw  = row.fields ? row.fields[sel.id] : '';
+        var list = Array.isArray(raw) ? raw : [raw];
+        for (var i = 0; i < list.length; i++) {
+            if (String(list[i] === null || list[i] === undefined ? '' : list[i]).trim() === sel.val) return true;
+        }
+        return false;
+    }
+
+    function updateFilterUI(adv, search, presetActive) {
+        var advCount = (adv.from ? 1 : 0) + (adv.to ? 1 : 0) + adv.choices.length + (adv.onlyFiles ? 1 : 0);
+        var $badge = $('#fm-filters-badge');
+        if (advCount > 0) {
+            $badge.text(advCount).removeAttr('hidden');
+        } else {
+            $badge.attr('hidden', 'hidden');
+        }
+        $('#fm-clear-filters').prop('hidden', !(advCount > 0 || search || presetActive));
+    }
+
+    function clearFilters() {
+        $('#fm-search').val('');
+        $('#fm-date-filter').val('');
+        $('#fm-date-from, #fm-date-to').val('');
+        $('.fm-choice-filter').val('');
+        $('#fm-only-files').prop('checked', false);
+        applyFilters();
+    }
+
     // --- Filtering ---
 
     function applyFilters() {
         var search = ($('#fm-search').val() || '').toLowerCase().trim();
         var dateFilter = $('#fm-date-filter').val();
+        var adv = getAdvancedFilters();
+        // Si se eligio un rango de fechas propio, tiene prioridad sobre el filtro rapido.
+        if (adv.from || adv.to) dateFilter = '';
 
         var now = new Date();
         var cutoff = null;
@@ -97,6 +224,23 @@
                 if (rowDate < cutoff) continue;
             }
 
+            // Rango de fechas propio (se compara el dia, en la hora del sitio)
+            if (adv.from || adv.to) {
+                var rowDay = (row.date || '').substr(0, 10);
+                if (adv.from && rowDay < adv.from) continue;
+                if (adv.to && rowDay > adv.to) continue;
+            }
+
+            // Campos de opcion
+            var choiceOk = true;
+            for (var c = 0; c < adv.choices.length; c++) {
+                if (!rowMatchesChoice(row, adv.choices[c])) { choiceOk = false; break; }
+            }
+            if (!choiceOk) continue;
+
+            // Solo con archivos adjuntos
+            if (adv.onlyFiles && !rowHasFiles(row)) continue;
+
             // Search filter
             if (search) {
                 var match = false;
@@ -120,6 +264,7 @@
         }
 
         page = 1;
+        updateFilterUI(adv, search, !!$('#fm-date-filter').val());
         renderTable();
     }
 
@@ -289,7 +434,25 @@
         searchTimeout = setTimeout(applyFilters, 250);
     });
 
-    $(document).on('change', '#fm-date-filter', applyFilters);
+    $(document).on('change', '#fm-date-filter', function() {
+        // Elegir un filtro rapido deja sin efecto el rango propio.
+        $('#fm-date-from, #fm-date-to').val('');
+        applyFilters();
+    });
+
+    $(document).on('change', '#fm-date-from, #fm-date-to', function() {
+        $('#fm-date-filter').val('');
+        applyFilters();
+    });
+    $(document).on('change', '.fm-choice-filter, #fm-only-files', applyFilters);
+
+    $(document).on('click', '#fm-filters-toggle', function() {
+        var $panel = $('#fm-filters-panel');
+        var open   = $panel.prop('hidden');           // estaba oculto -> se abre
+        $panel.prop('hidden', !open);
+        $(this).attr('aria-expanded', open ? 'true' : 'false');
+    });
+    $(document).on('click', '#fm-clear-filters', clearFilters);
 
     $(document).on('change', '#fm-page-size', function() {
         pageSize = parseInt($(this).val(), 10) || 25;
@@ -517,6 +680,12 @@
         var hh = ('0' + d.getHours()).slice(-2);
         var mi = ('0' + d.getMinutes()).slice(-2);
         return dd + '/' + mm + '/' + yy + ' ' + hh + ':' + mi;
+    }
+
+    function escAttr(str) {
+        return String(str === null || str === undefined ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function esc(str) {

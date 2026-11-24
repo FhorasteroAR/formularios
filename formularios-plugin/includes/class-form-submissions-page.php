@@ -193,7 +193,7 @@ class Formularios_Submissions_Page {
         $output = fopen( 'php://output', 'w' );
         fprintf( $output, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) );
 
-        $csv_headers = array( '#' );
+        $csv_headers = array( '#', 'Codigo' );
         foreach ( $headers as $h ) {
             $csv_headers[] = $h['label'];
         }
@@ -210,7 +210,7 @@ class Formularios_Submissions_Page {
                 }
             }
 
-            $csv_row = array( $idx + 1 );
+            $csv_row = array( $idx + 1, Formularios_Tracking::format( (int) $row->form_id, (int) $row->id, $row->submitted_at ) );
             foreach ( $headers as $h ) {
                 $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
                 $csv_row[] = is_array( $raw_val ) ? implode( ', ', $raw_val ) : $raw_val;
@@ -272,6 +272,7 @@ class Formularios_Submissions_Page {
         echo '.entry{border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
         echo '.entry-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #F3F4F6;font-size:12px;color:#6B7280}';
         echo '.entry-num{font-weight:700;color:#4F46E5;font-size:13px}';
+        echo '.entry-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:700;color:#111827;font-size:13px}';
         echo '.entry-fields{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px}';
         echo '.field-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#9CA3AF}';
         echo '.field-value{font-size:13px;color:#1F2937;font-weight:500;word-break:break-word}';
@@ -295,6 +296,7 @@ class Formularios_Submissions_Page {
             echo '<div class="entry">';
             echo '<div class="entry-header">';
             echo '<span class="entry-num">#' . ( $idx + 1 ) . '</span>';
+            echo '<span class="entry-code">' . esc_html( Formularios_Tracking::format( (int) $row->form_id, (int) $row->id, $row->submitted_at ) ) . '</span>';
             echo '<span>' . esc_html( $date_str ) . '</span>';
             echo '<span>' . esc_html( $row->ip_address ) . '</span>';
             echo '</div>';

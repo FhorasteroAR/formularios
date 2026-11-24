@@ -6,6 +6,7 @@
  * Author: Formularios Team
  * Text Domain: formularios
  * Domain Path: /languages
+ * Requires PHP: 7.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -25,6 +26,7 @@ require_once FORMULARIOS_PATH . 'includes/class-form-submissions-page.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-emails.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-captcha.php';
 require_once FORMULARIOS_PATH . 'includes/class-form-dashboard.php';
+require_once FORMULARIOS_PATH . 'includes/class-form-updater.php';
 
 final class Formularios {
 
@@ -70,3 +72,4 @@ final class Formularios {
 }
 
 Formularios::instance();
+Formularios_Updater::init();

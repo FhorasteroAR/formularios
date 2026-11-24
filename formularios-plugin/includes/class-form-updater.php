@@ -12,8 +12,16 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *   (PHP antiguo, archivo faltante, error), simplemente no se ofrecen
  *   actualizaciones y el plugin sigue funcionando igual.
  *
- * Para desactivarlo desde wp-config.php:
- *     define( 'FORMULARIOS_DISABLE_UPDATER', true );
+ * Configuracion opcional en wp-config.php:
+ *
+ *   // Repositorio privado: token de GitHub de solo lectura (ver ACTUALIZACIONES.md).
+ *   define( 'FORMULARIOS_GITHUB_TOKEN', 'github_pat_...' );
+ *
+ *   // Desactivar las actualizaciones desde GitHub.
+ *   define( 'FORMULARIOS_DISABLE_UPDATER', true );
+ *
+ * El token se guarda unicamente en wp-config.php: no va al repositorio ni a la
+ * base de datos, y nunca se escribe en los registros.
  */
 class Formularios_Updater {
 
@@ -49,13 +57,29 @@ class Formularios_Updater {
                 FORMULARIOS_PATH . 'formularios.php'
             );
 
-            // Exigir el ZIP adjunto a la version: sin el, no se ofrece actualizacion.
-            $checker->getVcsApi()->enableReleaseAssets(
-                self::ASSET_REGEX,
-                \YahnisElsts\PluginUpdateChecker\v6p0\Vcs\Api::REQUIRE_RELEASE_ASSETS
-            );
+            self::configure( $checker );
         } catch ( \Throwable $e ) {
             error_log( 'Formularios: no se pudo iniciar el actualizador — ' . $e->getMessage() );
+        }
+    }
+
+    /**
+     * Ajustes del verificador: exige el ZIP adjunto y, si esta definido,
+     * usa el token para leer un repositorio privado.
+     *
+     * @param object $checker Verificador de Plugin Update Checker.
+     */
+    public static function configure( $checker ) {
+        // Exigir el ZIP adjunto a la version: sin el, no se ofrece actualizacion.
+        $checker->getVcsApi()->enableReleaseAssets(
+            self::ASSET_REGEX,
+            \YahnisElsts\PluginUpdateChecker\v6p0\Vcs\Api::REQUIRE_RELEASE_ASSETS
+        );
+
+        // Repositorio privado: el token (solo lectura) se define en wp-config.php.
+        $token = defined( 'FORMULARIOS_GITHUB_TOKEN' ) ? trim( (string) FORMULARIOS_GITHUB_TOKEN ) : '';
+        if ( '' !== $token ) {
+            $checker->setAuthentication( $token );
         }
     }
 }

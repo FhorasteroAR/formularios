@@ -61,10 +61,43 @@ Agregue en `wp-config.php`:
 define( 'FORMULARIOS_DISABLE_UPDATER', true );
 ```
 
+## Repositorio privado: clave de acceso (token)
+
+Con el repositorio **privado**, el sitio necesita una clave de solo lectura para
+consultar y descargar las versiones. La clave se guarda **solo en `wp-config.php`**
+(no en el repositorio ni en la base de datos).
+
+1. En GitHub: su perfil → **Settings → Developer settings → Personal access tokens
+   → Fine-grained tokens → Generate new token**.
+2. Configure:
+   - **Repository access:** *Only select repositories* → `formularios`.
+   - **Permissions → Repository permissions → Contents:** *Read-only*. Ningún otro permiso.
+   - **Expiration:** elija un vencimiento (por ejemplo, 90 días o 1 año).
+3. Copie el token (GitHub lo muestra una sola vez).
+4. En `wp-config.php`, antes de la línea *"That's all, stop editing!"*, agregue:
+
+   ```php
+   define( 'FORMULARIOS_GITHUB_TOKEN', 'github_pat_xxxxxxxx' );
+   ```
+5. Compruebe en **Escritorio → Actualizaciones → Comprobar de nuevo**.
+
+Importante:
+- **Anote la fecha de vencimiento.** Cuando el token vence, el sitio deja de
+  mostrar actualizaciones sin dar ningún aviso; genere uno nuevo y reemplácelo.
+- Si el token se filtra (chat, correo, captura), **revóquelo de inmediato** en
+  GitHub y genere otro.
+- Nunca lo guarde en el repositorio.
+- En un repositorio privado, los ZIP de las versiones solo se descargan con la
+  sesión de GitHub iniciada (por ejemplo, para la instalación manual inicial).
+
 ## Seguridad
 
+- Aunque un repositorio sea público, solo las cuentas con permiso de escritura
+  pueden modificarlo. Lo que protege al sitio es **quién puede publicar versiones**:
+  el sitio instala únicamente lo que se publica como versión.
 - Active la verificación en dos pasos en las cuentas con acceso al repositorio.
 - Proteja las etiquetas `v*` (GitHub → Settings → Rules) para que solo personas
   autorizadas puedan crear versiones.
 - Quien pueda publicar una versión puede cambiar el código que se instala en el
   sitio: limite ese permiso.
+- Mantener el repositorio privado evita exponer el código del plugin.

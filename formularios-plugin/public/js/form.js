@@ -159,7 +159,7 @@
         }
 
         function initTurnstileWidget() {
-            var container = document.getElementById('fm-turnstile-' + $wrap.attr('data-form-id'));
+            var container = $wrap.find('.fm-turnstile-widget')[0];
             if (!container) return;
             if (typeof turnstile !== 'undefined') {
                 renderTurnstileWidget(container);
@@ -223,7 +223,7 @@
         }
 
         function executeTurnstile(callback) {
-            var container = document.getElementById('fm-turnstile-' + $wrap.attr('data-form-id'));
+            var container = $wrap.find('.fm-turnstile-widget')[0];
             if (!container) { callback(''); return; }
             turnstilePendingCallback = callback;
             if (turnstileWidgetId === null) {

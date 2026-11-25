@@ -417,30 +417,7 @@ class Formularios_Builder {
         }
 
         if ( isset( $_POST['formularios_settings'] ) ) {
-            $raw = $_POST['formularios_settings'];
-
-            $allowed_btn     = array( 'rounded', 'pill', 'square' );
-            $allowed_shadow  = array( 'none', 'soft', 'medium', 'strong' );
-            $allowed_radius  = array( 'none', 'small', 'medium', 'large' );
-            $allowed_font    = array( 'system', 'inter', 'poppins', 'merriweather' );
-            $allowed_width   = array( 'compact', 'medium', 'wide', 'xwide', 'full' );
-
-            $settings = array(
-                'submit_text'       => sanitize_text_field( $raw['submit_text'] ?? '' ),
-                'success_msg'       => sanitize_textarea_field( $raw['success_msg'] ?? '' ),
-                'show_progress'     => isset( $raw['show_progress'] ) ? '1' : '0',
-                'theme_color'       => sanitize_hex_color( $raw['theme_color'] ?? '#4F46E5' ),
-                'accent_color'      => sanitize_hex_color( $raw['accent_color'] ?? '#10B981' ),
-                'btn_style'         => in_array( $raw['btn_style'] ?? '', $allowed_btn, true ) ? $raw['btn_style'] : 'rounded',
-                'shadow_style'      => in_array( $raw['shadow_style'] ?? '', $allowed_shadow, true ) ? $raw['shadow_style'] : 'soft',
-                'border_radius'     => in_array( $raw['border_radius'] ?? '', $allowed_radius, true ) ? $raw['border_radius'] : 'medium',
-                'font_family'       => in_array( $raw['font_family'] ?? '', $allowed_font, true ) ? $raw['font_family'] : 'system',
-                'form_width'        => in_array( $raw['form_width'] ?? '', $allowed_width, true ) ? $raw['form_width'] : 'medium',
-                'notify_admin'      => sanitize_textarea_field( $raw['notify_admin'] ?? '' ),
-                'notify_respondent' => isset( $raw['notify_respondent'] ) ? '1' : '0',
-                'code_prefix'       => Formularios_Tracking::sanitize_prefix( $raw['code_prefix'] ?? '' ),
-                'show_code'         => isset( $raw['show_code'] ) ? '1' : '0',
-            );
+            $settings = self::sanitize_settings( $_POST['formularios_settings'] );
             update_post_meta( $post_id, '_formularios_settings', $settings );
         }
 
@@ -449,7 +426,33 @@ class Formularios_Builder {
         }
     }
 
-    private function sanitize_elements( $elements ) {
+    public static function sanitize_settings( $raw ) {
+        $allowed_btn     = array( 'rounded', 'pill', 'square' );
+        $allowed_shadow  = array( 'none', 'soft', 'medium', 'strong' );
+        $allowed_radius  = array( 'none', 'small', 'medium', 'large' );
+        $allowed_font    = array( 'system', 'inter', 'poppins', 'merriweather' );
+        $allowed_width   = array( 'compact', 'medium', 'wide', 'xwide', 'full' );
+
+        $settings = array(
+            'submit_text'       => sanitize_text_field( $raw['submit_text'] ?? '' ),
+            'success_msg'       => sanitize_textarea_field( $raw['success_msg'] ?? '' ),
+            'show_progress'     => isset( $raw['show_progress'] ) ? '1' : '0',
+            'theme_color'       => sanitize_hex_color( $raw['theme_color'] ?? '#4F46E5' ),
+            'accent_color'      => sanitize_hex_color( $raw['accent_color'] ?? '#10B981' ),
+            'btn_style'         => in_array( $raw['btn_style'] ?? '', $allowed_btn, true ) ? $raw['btn_style'] : 'rounded',
+            'shadow_style'      => in_array( $raw['shadow_style'] ?? '', $allowed_shadow, true ) ? $raw['shadow_style'] : 'soft',
+            'border_radius'     => in_array( $raw['border_radius'] ?? '', $allowed_radius, true ) ? $raw['border_radius'] : 'medium',
+            'font_family'       => in_array( $raw['font_family'] ?? '', $allowed_font, true ) ? $raw['font_family'] : 'system',
+            'form_width'        => in_array( $raw['form_width'] ?? '', $allowed_width, true ) ? $raw['form_width'] : 'medium',
+            'notify_admin'      => sanitize_textarea_field( $raw['notify_admin'] ?? '' ),
+            'notify_respondent' => isset( $raw['notify_respondent'] ) ? '1' : '0',
+            'code_prefix'       => Formularios_Tracking::sanitize_prefix( $raw['code_prefix'] ?? '' ),
+            'show_code'         => isset( $raw['show_code'] ) ? '1' : '0',
+        );
+        return $settings;
+    }
+
+    public static function sanitize_elements( $elements ) {
         $clean = array();
         foreach ( $elements as $el ) {
             $type = sanitize_text_field( $el['type'] ?? '' );

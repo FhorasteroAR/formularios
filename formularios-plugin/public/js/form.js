@@ -305,6 +305,12 @@
                     if (ajaxResponse && ajaxResponse.success) {
                         // Transition from overlay to success
                         $overlay.fadeOut(300, function() {
+                            var code = ajaxResponse.data && ajaxResponse.data.code ? String(ajaxResponse.data.code) : '';
+                            if (code) {
+                                var $box = $wrap.find('.fm-success-code');
+                                $box.find('.fm-success-code-value').text(code);
+                                $box.removeAttr('hidden');
+                            }
                             $wrap.find('.fm-success-message').fadeIn(400);
                         });
                     } else {

@@ -5,6 +5,7 @@ class Formularios_Submissions_Page {
 
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'add_menu_page' ) );
+        add_action( 'admin_init', array( $this, 'maybe_redirect_code_search' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'wp_ajax_formularios_export_submissions', array( $this, 'ajax_export_csv' ) );
         add_action( 'wp_ajax_formularios_export_submissions_pdf', array( $this, 'ajax_export_pdf' ) );
@@ -19,6 +20,33 @@ class Formularios_Submissions_Page {
             'formularios-submissions',
             array( $this, 'render_page' )
         );
+    }
+
+    /**
+     * Busqueda global por codigo de seguimiento: lleva a la pestana del formulario
+     * correcto y abre la respuesta. Si no existe, vuelve con un aviso.
+     */
+    public function maybe_redirect_code_search() {
+        if ( 'formularios-submissions' !== ( $_GET['page'] ?? '' ) || empty( $_GET['code'] ) ) {
+            return;
+        }
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            return;
+        }
+
+        $code = sanitize_text_field( wp_unslash( $_GET['code'] ) );
+        $base = admin_url( 'edit.php?post_type=formulario&page=formularios-submissions' );
+        $row  = Formularios_Tracking::find_submission( $code );
+
+        if ( $row ) {
+            wp_safe_redirect( add_query_arg( array(
+                'form_id' => (int) $row->form_id,
+                'open'    => (int) $row->id,
+            ), $base ) );
+        } else {
+            wp_safe_redirect( add_query_arg( 'code_error', rawurlencode( $code ), $base ) );
+        }
+        exit;
     }
 
     private function get_form_headers( $form_id ) {
@@ -101,6 +129,7 @@ class Formularios_Submissions_Page {
 
                 $rows[] = array(
                     'id'         => (int) $row->id,
+                    'code'       => Formularios_Tracking::format( (int) $row->form_id, (int) $row->id, $row->submitted_at ),
                     'fields'     => (object) $fields,
                     'date'       => $row->submitted_at,
                     'ip'         => $row->ip_address,
@@ -115,6 +144,7 @@ class Formularios_Submissions_Page {
             'rows'     => $rows,
             'headers'  => $headers,
             'form_id'  => $active_form_id,
+            'open_id'  => isset( $_GET['open'] ) ? absint( $_GET['open'] ) : 0,
         ) );
     }
 
@@ -137,8 +167,8 @@ class Formularios_Submissions_Page {
 
         // Optional ID filter
         $ids = array();
-        if ( ! empty( $_GET['ids'] ) ) {
-            $ids = array_map( 'absint', explode( ',', sanitize_text_field( $_GET['ids'] ) ) );
+        if ( ! empty( $_REQUEST['ids'] ) ) {
+            $ids = array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ) ) );
             $ids = array_filter( $ids );
         }
 
@@ -163,7 +193,7 @@ class Formularios_Submissions_Page {
         $output = fopen( 'php://output', 'w' );
         fprintf( $output, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) );
 
-        $csv_headers = array( '#' );
+        $csv_headers = array( '#', 'Codigo' );
         foreach ( $headers as $h ) {
             $csv_headers[] = $h['label'];
         }
@@ -180,7 +210,7 @@ class Formularios_Submissions_Page {
                 }
             }
 
-            $csv_row = array( $idx + 1 );
+            $csv_row = array( $idx + 1, Formularios_Tracking::format( (int) $row->form_id, (int) $row->id, $row->submitted_at ) );
             foreach ( $headers as $h ) {
                 $raw_val = isset( $data_map[ $h['id'] ] ) ? $data_map[ $h['id'] ]['value'] : '';
                 $csv_row[] = is_array( $raw_val ) ? implode( ', ', $raw_val ) : $raw_val;
@@ -213,8 +243,8 @@ class Formularios_Submissions_Page {
 
         // Optional ID filter
         $ids = array();
-        if ( ! empty( $_GET['ids'] ) ) {
-            $ids = array_map( 'absint', explode( ',', sanitize_text_field( $_GET['ids'] ) ) );
+        if ( ! empty( $_REQUEST['ids'] ) ) {
+            $ids = array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ) ) );
             $ids = array_filter( $ids );
         }
 
@@ -242,6 +272,7 @@ class Formularios_Submissions_Page {
         echo '.entry{border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
         echo '.entry-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #F3F4F6;font-size:12px;color:#6B7280}';
         echo '.entry-num{font-weight:700;color:#4F46E5;font-size:13px}';
+        echo '.entry-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:700;color:#111827;font-size:13px}';
         echo '.entry-fields{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px}';
         echo '.field-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#9CA3AF}';
         echo '.field-value{font-size:13px;color:#1F2937;font-weight:500;word-break:break-word}';
@@ -265,6 +296,7 @@ class Formularios_Submissions_Page {
             echo '<div class="entry">';
             echo '<div class="entry-header">';
             echo '<span class="entry-num">#' . ( $idx + 1 ) . '</span>';
+            echo '<span class="entry-code">' . esc_html( Formularios_Tracking::format( (int) $row->form_id, (int) $row->id, $row->submitted_at ) ) . '</span>';
             echo '<span>' . esc_html( $date_str ) . '</span>';
             echo '<span>' . esc_html( $row->ip_address ) . '</span>';
             echo '</div>';
@@ -335,7 +367,20 @@ class Formularios_Submissions_Page {
         <div class="wrap fm-submissions-wrap">
             <div class="fm-sub-top-bar">
                 <h1 class="wp-heading-inline">Respuestas</h1>
+                <form method="get" action="<?php echo esc_url( admin_url( 'edit.php' ) ); ?>" class="fm-code-search" role="search">
+                    <input type="hidden" name="post_type" value="formulario" />
+                    <input type="hidden" name="page" value="formularios-submissions" />
+                    <label for="fm-code-input" class="screen-reader-text">Buscar por c&oacute;digo de seguimiento</label>
+                    <input type="search" id="fm-code-input" name="code" class="fm-code-input" placeholder="C&oacute;digo de seguimiento (ej.: ROG-<?php echo esc_attr( current_time( 'Y' ) ); ?>-000123)" value="" autocomplete="off" />
+                    <button type="submit" class="button button-primary">Buscar c&oacute;digo</button>
+                </form>
             </div>
+
+            <?php if ( ! empty( $_GET['code_error'] ) ) : ?>
+                <div class="notice notice-warning inline" role="alert">
+                    <p>No se encontr&oacute; ninguna respuesta con el c&oacute;digo <strong><?php echo esc_html( sanitize_text_field( rawurldecode( wp_unslash( $_GET['code_error'] ) ) ) ); ?></strong>. Revise que est&eacute; escrito completo (por ejemplo, ROG-<?php echo esc_html( current_time( 'Y' ) ); ?>-000123).</p>
+                </div>
+            <?php endif; ?>
 
             <?php if ( empty( $forms ) ) : ?>
                 <div class="fm-submissions-empty">
@@ -420,6 +465,14 @@ class Formularios_Submissions_Page {
                                     <button type="button" class="fm-export-option fm-export-selected-only" id="fm-export-pdf-sel" style="display:none">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 11 12 14 22 4"/></svg>
                                         <span class="fm-export-option-text"><strong>PDF &mdash; Seleccionadas</strong><small>Solo marcadas</small></span>
+                                    </button>
+                                    <button type="button" class="fm-export-option fm-export-filtered-only" id="fm-export-csv-fil" style="display:none">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 11 12 14 22 4"/></svg>
+                                        <span class="fm-export-option-text"><strong>CSV &mdash; Filtradas <span class="fm-fil-count"></span></strong><small>Solo las que se ven con los filtros</small></span>
+                                    </button>
+                                    <button type="button" class="fm-export-option fm-export-filtered-only" id="fm-export-pdf-fil" style="display:none">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 11 12 14 22 4"/></svg>
+                                        <span class="fm-export-option-text"><strong>PDF &mdash; Filtradas <span class="fm-fil-count"></span></strong><small>Solo las que se ven con los filtros</small></span>
                                     </button>
                                 </div>
                             </div>

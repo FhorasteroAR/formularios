@@ -743,3 +743,24 @@
 .fm-field[data-type="consent"] .fm-consent-check .fm-choice-label {
     font-weight: 500;
 }
+
+
+/* Codigo de seguimiento en la pantalla de exito */
+.fm-success-code[hidden] { display: none; }
+.fm-success-code {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 14px 22px;
+    background: var(--fm-gray-50, #F9FAFB);
+    border: 1px solid var(--fm-gray-100, #E5E7EB);
+    border-radius: 8px;
+}
+.fm-success-code-label { display: block; font-size: 13px; color: var(--fm-gray-700, #374151); margin-bottom: 4px; }
+.fm-success-code-value {
+    display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 20px;
+    letter-spacing: 0.5px;
+    color: #111827;
+    user-select: all;
+}

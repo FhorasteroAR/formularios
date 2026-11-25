@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Formularios_Emails {
 
     public function __construct() {
-        add_action( 'formularios_after_submission', array( $this, 'send_notifications' ), 10, 4 );
+        add_action( 'formularios_after_submission', array( $this, 'send_notifications' ), 10, 5 );
         add_action( 'wp_ajax_formularios_email_preview', array( $this, 'ajax_preview' ) );
     }
 
@@ -19,19 +19,19 @@ class Formularios_Emails {
     public static function defaults() {
         return array(
             'admin' => array(
-                'subject'         => 'Nueva respuesta #{numero}: {formulario}',
-                'heading'         => 'Nueva respuesta recibida (#{numero})',
+                'subject'         => 'Nueva respuesta {codigo}: {formulario}',
+                'heading'         => 'Nueva respuesta recibida ({codigo})',
                 'intro'           => '',
-                'footer'          => 'Respuesta #{numero} — Enviado el {fecha}',
+                'footer'          => 'Respuesta {codigo} — Enviado el {fecha}',
                 'include_answers' => '1',
                 'header_color'    => '#4F46E5',
                 'reply_to'        => '1',
             ),
             'respondent' => array(
-                'subject'         => 'Copia de tu respuesta #{numero}: {formulario}',
-                'heading'         => 'Copia de tu respuesta (#{numero})',
+                'subject'         => 'Copia de tu respuesta {codigo}: {formulario}',
+                'heading'         => 'Copia de tu respuesta ({codigo})',
                 'intro'           => '',
-                'footer'          => 'Respuesta #{numero} — Gracias por completar el formulario. Esta es una copia de tus respuestas.',
+                'footer'          => 'Respuesta {codigo} — Gracias por completar el formulario. Esta es una copia de tus respuestas.',
                 'include_answers' => '1',
                 'header_color'    => '#4F46E5',
                 'reply_to'        => '0',
@@ -80,12 +80,13 @@ class Formularios_Emails {
     /**
      * Send email notifications after a form submission.
      */
-    public function send_notifications( $form_id, $submission, $elements, $submission_number = 0 ) {
+    public function send_notifications( $form_id, $submission, $elements, $submission_number = 0, $submission_id = 0 ) {
         $settings = get_post_meta( $form_id, '_formularios_settings', true );
         if ( empty( $settings ) ) return;
 
         $config           = self::get_config( $form_id );
-        $vars             = $this->build_vars( $form_id, $submission, $submission_number );
+        $code             = $submission_id ? Formularios_Tracking::for_submission_id( $submission_id ) : '';
+        $vars             = $this->build_vars( $form_id, $submission, $submission_number, $code );
         $attachments      = $this->collect_file_attachments( $submission );
         $respondent_email = $this->find_respondent_email( $submission, $elements );
         $respondent_email = is_email( $respondent_email ) ? $respondent_email : '';
@@ -97,7 +98,7 @@ class Formularios_Emails {
             $reply_to = ( '1' === $mail['reply_to'] ) ? $respondent_email : '';
             $this->send_html_email(
                 $admin_emails,
-                $this->replace_vars( $mail['subject'], $vars ),
+                $this->build_subject( $mail['subject'], $vars ),
                 $this->build_email( $mail, $vars, $submission ),
                 $attachments,
                 $reply_to
@@ -109,7 +110,7 @@ class Formularios_Emails {
             $mail = $config['respondent'];
             $this->send_html_email(
                 array( $respondent_email ),
-                $this->replace_vars( $mail['subject'], $vars ),
+                $this->build_subject( $mail['subject'], $vars ),
                 $this->build_email( $mail, $vars, $submission ),
                 '1' === $mail['include_answers'] ? $attachments : array()
             );
@@ -123,10 +124,11 @@ class Formularios_Emails {
     /**
      * Variables disponibles en asunto, titulo, mensaje y pie.
      */
-    private function build_vars( $form_id, $submission, $submission_number ) {
+    private function build_vars( $form_id, $submission, $submission_number, $code = '' ) {
         $vars = array(
             '{formulario}' => get_the_title( $form_id ),
             '{numero}'     => (string) $submission_number,
+            '{codigo}'     => (string) $code,
             '{fecha}'      => current_time( 'd/m/Y H:i' ),
             '{sitio}'      => get_bloginfo( 'name' ),
         );
@@ -140,6 +142,19 @@ class Formularios_Emails {
             $vars[ '{campo:' . $field['id'] . '}' ] = (string) $value;
         }
         return $vars;
+    }
+
+    /**
+     * Asunto del correo. Si la plantilla guardada no incluye {codigo}, se agrega
+     * al final entre corchetes para que toda respuesta sea rastreable por correo.
+     */
+    private function build_subject( $template, $vars ) {
+        $subject = $this->replace_vars( $template, $vars );
+        $code    = $vars['{codigo}'] ?? '';
+        if ( '' !== $code && false === strpos( $template, '{codigo}' ) ) {
+            $subject .= ' [' . $code . ']';
+        }
+        return $subject;
     }
 
     private function replace_vars( $text, $vars, $escape = false ) {
@@ -174,13 +189,13 @@ class Formularios_Emails {
         $submission = $this->sample_submission( is_array( $elements ) ? $elements : array() );
 
         $title = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
-        $vars  = $this->build_vars( $form_id, $submission, 123 );
+        $vars  = $this->build_vars( $form_id, $submission, 123, Formularios_Tracking::format( $form_id, 123 ) );
         if ( '' !== $title ) {
             $vars['{formulario}'] = $title;
         }
 
         wp_send_json_success( array(
-            'subject' => $this->replace_vars( $mail['subject'], $vars ),
+            'subject' => $this->build_subject( $mail['subject'], $vars ),
             'html'    => $this->build_email( $mail, $vars, $submission ),
         ) );
     }
@@ -251,6 +266,17 @@ class Formularios_Emails {
         // Mensaje personalizado
         if ( '' !== trim( $intro ) ) {
             $h .= '<tr><td style="padding:24px 28px 4px;font-size:15px;color:#374151;line-height:1.6;">' . wpautop( $intro ) . '</td></tr>';
+        }
+
+        // Codigo de seguimiento: se muestra siempre, salvo que la plantilla ya lo incluya.
+        $code = $vars['{codigo}'] ?? '';
+        if ( '' !== $code && false === strpos( $mail['heading'] . $mail['intro'] . $mail['footer'], '{codigo}' ) ) {
+            $h .= '<tr><td style="padding:20px 28px 0;">';
+            $h .= '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;"><tr><td style="padding:14px 18px;">';
+            $h .= '<span style="display:block;font-size:12px;color:#6b7280;margin:0 0 4px;">C&oacute;digo de seguimiento</span>';
+            $h .= '<strong style="font-size:18px;color:#111827;letter-spacing:0.5px;">' . esc_html( $code ) . '</strong>';
+            $h .= '</td></tr></table>';
+            $h .= '</td></tr>';
         }
 
         if ( '1' === $mail['include_answers'] && ! empty( $submission ) ) {

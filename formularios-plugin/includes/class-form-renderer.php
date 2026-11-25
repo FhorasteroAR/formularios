@@ -41,6 +41,7 @@ class Formularios_Renderer {
         $settings = wp_parse_args( $settings ? $settings : array(), array(
             'submit_text'   => 'Enviar',
             'success_msg'   => 'Gracias! Tu respuesta ha sido registrada.',
+            'show_code'     => '0',
             'show_progress' => '1',
             'theme_color'   => '#4F46E5',
             'accent_color'  => '#10B981',
@@ -282,6 +283,12 @@ class Formularios_Renderer {
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 </div>
                 <p><?php echo esc_html( $settings['success_msg'] ); ?></p>
+                <?php if ( '1' === $settings['show_code'] ) : ?>
+                    <div class="fm-success-code" role="status" hidden>
+                        <span class="fm-success-code-label">Su c&oacute;digo de seguimiento:</span>
+                        <strong class="fm-success-code-value"></strong>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         <?php

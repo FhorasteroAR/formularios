@@ -1,0 +1,61 @@
+name: Publicar version del plugin
+
+# Se ejecuta al crear una etiqueta con formato vX.Y.Z (por ejemplo, v1.5.1).
+# Antes de publicar verifica que la version coincida y que no haya errores de
+# sintaxis PHP; si algo falla, NO se publica y los sitios no reciben la version.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar que la etiqueta coincide con la version del plugin
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          HEADER=$(grep -m1 -E '^[[:space:]]*\*[[:space:]]*Version:' formularios-plugin/formularios.php | sed -E 's/.*Version:[[:space:]]*//; s/[[:space:]]+$//')
+          CONSTANT=$(grep -m1 "define( 'FORMULARIOS_VERSION'" formularios-plugin/formularios.php | sed -E "s/.*'FORMULARIOS_VERSION',[[:space:]]*'([^']+)'.*/\1/")
+          echo "Etiqueta: $TAG | Encabezado: $HEADER | Constante: $CONSTANT"
+          if [ "$TAG" != "$HEADER" ] || [ "$TAG" != "$CONSTANT" ]; then
+            echo "::error::La etiqueta (v$TAG) debe coincidir con 'Version' (encabezado: $HEADER) y con FORMULARIOS_VERSION ($CONSTANT) en formularios.php."
+            exit 1
+          fi
+
+      - name: Revisar sintaxis PHP
+        run: |
+          php -v | head -1
+          status=0
+          while IFS= read -r -d '' f; do
+            if ! out=$(php -l "$f" 2>&1); then
+              echo "::error file=$f::$out"
+              status=1
+            fi
+          done < <(find formularios-plugin -name '*.php' -print0)
+          exit $status
+
+      - name: Armar el ZIP del plugin
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          zip -rq "formularios-${VERSION}.zip" formularios-plugin -x '*.DS_Store'
+          unzip -l "formularios-${VERSION}.zip" | tail -1
+
+      - name: Publicar la version en GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Si la version ya se creo desde la web de GitHub, solo se adjunta el ZIP.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "formularios-${VERSION}.zip" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "formularios-${VERSION}.zip" \
+              --title "Formularios ${VERSION}" \
+              --generate-notes
+          fi

@@ -265,6 +265,7 @@
 
         page = 1;
         updateFilterUI(adv, search, !!$('#fm-date-filter').val());
+        updateFilteredExportUI();
         renderTable();
     }
 
@@ -624,6 +625,39 @@
     });
 
     // --- Export Actions ---
+
+    // Exportar solo lo filtrado: los ids viajan por POST (una lista larga no cabe en la URL).
+    function updateFilteredExportUI() {
+        var active = filtered.length > 0 && filtered.length < allRows.length;
+        var $opts = $('.fm-export-filtered-only');
+        $opts.toggle(active);
+        $('.fm-fil-count').text(active ? '(' + filtered.length + ')' : '');
+    }
+
+    function postExport(action, ids, newTab) {
+        var $f = $('<form method="post" style="display:none"></form>')
+            .attr('action', ajaxUrl + '?action=' + action + '&form_id=' + formId + '&nonce=' + nonce);
+        if (newTab) $f.attr('target', '_blank');
+        $('<input type="hidden" name="ids">').val(ids.join(',')).appendTo($f);
+        $('body').append($f);
+        $f.trigger('submit');
+        setTimeout(function() { $f.remove(); }, 1000);
+    }
+
+    function getFilteredIds() {
+        return filtered.map(function(r) { return r.id; });
+    }
+
+    $(document).on('click', '#fm-export-csv-fil', function() {
+        $('.fm-export-dropdown').removeClass('open');
+        var ids = getFilteredIds();
+        if (ids.length) postExport('formularios_export_submissions', ids, false);
+    });
+    $(document).on('click', '#fm-export-pdf-fil', function() {
+        $('.fm-export-dropdown').removeClass('open');
+        var ids = getFilteredIds();
+        if (ids.length) postExport('formularios_export_submissions_pdf', ids, true);
+    });
 
     function buildExportUrl(action, ids) {
         var url = ajaxUrl + '?action=' + action + '&form_id=' + formId + '&nonce=' + nonce;

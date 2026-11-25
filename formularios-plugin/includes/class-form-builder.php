@@ -192,6 +192,7 @@ class Formularios_Builder {
             'notify_admin'      => '',
             'notify_respondent' => '0',
             'code_prefix'       => '',
+            'show_code'         => '0',
         ) );
         ?>
         <div class="formularios-settings-panel">
@@ -203,6 +204,13 @@ class Formularios_Builder {
                 <label for="fm-code-prefix">Prefijo del codigo de seguimiento</label>
                 <input type="text" id="fm-code-prefix" name="formularios_settings[code_prefix]" value="<?php echo esc_attr( $settings['code_prefix'] ); ?>" class="widefat" maxlength="5" placeholder="<?php echo esc_attr( Formularios_Tracking::DEFAULT_PREFIX ); ?>" style="text-transform:uppercase" />
                 <span class="description">De 2 a 5 letras (ej.: ROG). Cada respuesta tendra un codigo como <strong><?php echo esc_html( Formularios_Tracking::get_prefix( $post->ID ) ); ?>-<?php echo esc_html( current_time( 'Y' ) ); ?>-000123</strong>.</span>
+            </p>
+            <p>
+                <label>
+                    <input type="checkbox" name="formularios_settings[show_code]" value="1" <?php checked( $settings['show_code'], '1' ); ?> />
+                    Mostrar el c&oacute;digo de seguimiento a la persona al enviar el formulario
+                </label>
+                <span class="description">D&eacute;jelo desactivado en formularios an&oacute;nimos: el c&oacute;digo queda solo como referencia interna.</span>
             </p>
             <p>
                 <label>Mensaje de exito</label>
@@ -431,6 +439,7 @@ class Formularios_Builder {
                 'notify_admin'      => sanitize_textarea_field( $raw['notify_admin'] ?? '' ),
                 'notify_respondent' => isset( $raw['notify_respondent'] ) ? '1' : '0',
                 'code_prefix'       => Formularios_Tracking::sanitize_prefix( $raw['code_prefix'] ?? '' ),
+                'show_code'         => isset( $raw['show_code'] ) ? '1' : '0',
             );
             update_post_meta( $post_id, '_formularios_settings', $settings );
         }

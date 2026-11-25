@@ -167,8 +167,8 @@ class Formularios_Submissions_Page {
 
         // Optional ID filter
         $ids = array();
-        if ( ! empty( $_GET['ids'] ) ) {
-            $ids = array_map( 'absint', explode( ',', sanitize_text_field( $_GET['ids'] ) ) );
+        if ( ! empty( $_REQUEST['ids'] ) ) {
+            $ids = array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ) ) );
             $ids = array_filter( $ids );
         }
 
@@ -243,8 +243,8 @@ class Formularios_Submissions_Page {
 
         // Optional ID filter
         $ids = array();
-        if ( ! empty( $_GET['ids'] ) ) {
-            $ids = array_map( 'absint', explode( ',', sanitize_text_field( $_GET['ids'] ) ) );
+        if ( ! empty( $_REQUEST['ids'] ) ) {
+            $ids = array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ) ) );
             $ids = array_filter( $ids );
         }
 
@@ -465,6 +465,14 @@ class Formularios_Submissions_Page {
                                     <button type="button" class="fm-export-option fm-export-selected-only" id="fm-export-pdf-sel" style="display:none">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 11 12 14 22 4"/></svg>
                                         <span class="fm-export-option-text"><strong>PDF &mdash; Seleccionadas</strong><small>Solo marcadas</small></span>
+                                    </button>
+                                    <button type="button" class="fm-export-option fm-export-filtered-only" id="fm-export-csv-fil" style="display:none">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 11 12 14 22 4"/></svg>
+                                        <span class="fm-export-option-text"><strong>CSV &mdash; Filtradas <span class="fm-fil-count"></span></strong><small>Solo las que se ven con los filtros</small></span>
+                                    </button>
+                                    <button type="button" class="fm-export-option fm-export-filtered-only" id="fm-export-pdf-fil" style="display:none">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 11 12 14 22 4"/></svg>
+                                        <span class="fm-export-option-text"><strong>PDF &mdash; Filtradas <span class="fm-fil-count"></span></strong><small>Solo las que se ven con los filtros</small></span>
                                     </button>
                                 </div>
                             </div>

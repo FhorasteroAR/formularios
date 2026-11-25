@@ -217,6 +217,15 @@ class Formularios_Submissions {
             error_log( 'Formularios: post-submission hook error — ' . $e->getMessage() );
         }
 
+        // Si el formulario lo permite, se informa el codigo a la persona (por defecto no).
+        $form_settings = get_post_meta( $form_id, '_formularios_settings', true );
+        if ( is_array( $form_settings ) && '1' === ( $form_settings['show_code'] ?? '0' ) && $submission_id ) {
+            wp_send_json_success( array(
+                'message' => 'Respuesta guardada correctamente.',
+                'code'    => Formularios_Tracking::for_submission_id( $submission_id ),
+            ) );
+        }
+
         wp_send_json_success( 'Respuesta guardada correctamente.' );
     }
 
